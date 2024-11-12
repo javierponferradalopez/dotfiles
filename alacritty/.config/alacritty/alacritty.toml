@@ -3,14 +3,14 @@ import = [
 ]
 
 [shell]
-program = "/opt/homebrew/opt/fish/bin/fish"
+program = "/opt/homebrew/bin/zsh"
 
 
 [font]
-size = 13.5
+size = 15
 
 [font.normal]
-family = "FiraCode Nerd Font"
+family = "JetBrainsMono Nerd Font"
 style = "Regular"
 
 [window]
