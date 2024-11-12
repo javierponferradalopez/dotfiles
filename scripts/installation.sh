@@ -11,11 +11,7 @@ brew_install() {
 }
 
 brew_install "nvim"
-brew_install "tmux"
 brew_install "git"
-brew_install "ripgrep"
 brew_install "stow"
-brew_install "fish"
-brew_install "fisher"
 
 echo "\n${RED}Remember to install a Nerd Font (https://www.nerdfonts.com/font-downloads)${NC}"
