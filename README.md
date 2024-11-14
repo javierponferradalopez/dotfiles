@@ -17,5 +17,5 @@ git clone --recursive ...
 We need to source all of the configurations by running the following command:
 
 ```bash
-stow -t $HOME -v alacritty nvim tmux
+stow -t $HOME -v alacritty nvim
 ```
