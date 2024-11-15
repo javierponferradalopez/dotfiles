@@ -1,10 +1,6 @@
-import = [
-  "~/.config/alacritty/catppuccin-macchiato.toml"
-]
-
-[shell]
-program = "/opt/homebrew/bin/zsh"
-
+[terminal.shell]
+program = "/bin/zsh"
+args = ["--login"]
 
 [font]
 size = 15
@@ -56,3 +52,7 @@ chars = "\u001b\u007f"
 mods = "Alt"
 key = "Back"
 
+[general]
+import = [
+  "~/.config/alacritty/catppuccin-macchiato.toml"
+]

@@ -10,8 +10,19 @@ brew_install() {
   fi
 }
 
-brew_install "nvim"
+echo "\nGeneral dependencies -----"
+brew_install "nvm"
 brew_install "git"
 brew_install "stow"
+brew_install "zsh"
+echo "\n-------------------------"
+
+echo "\nNvim's dependencies -----"
+brew_install "neovim"
+brew_install "gcc"
+brew_install "ripgrep"
+brew_install "fd"
+brew_install "make"
+echo "\n-------------------------"
 
 echo "\n${RED}Remember to install a Nerd Font (https://www.nerdfonts.com/font-downloads)${NC}"
