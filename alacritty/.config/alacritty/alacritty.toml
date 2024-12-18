@@ -10,7 +10,7 @@ family = "JetBrainsMono Nerd Font"
 style = "Regular"
 
 [window]
-opacity = 0.9
+opacity = 0.95
 
 [env]
 TERM = "xterm-256color"
