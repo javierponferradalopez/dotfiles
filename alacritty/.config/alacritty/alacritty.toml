@@ -3,7 +3,7 @@ program = "/bin/zsh"
 args = ["--login"]
 
 [font]
-size = 15
+size = 17
 
 [font.normal]
 family = "JetBrainsMono Nerd Font"
