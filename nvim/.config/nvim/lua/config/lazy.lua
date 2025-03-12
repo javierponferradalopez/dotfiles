@@ -11,15 +11,12 @@ require("lazy").setup({
   spec = {
     {
       "LazyVim/LazyVim",
-      tag = "v13.9.1", -- This is necessary because LazyVim removes telescope and other plugins in versions 14.x onwards
       import = "lazyvim.plugins",
     },
 
     -- UI
-    { import = "lazyvim.plugins.extras.ui.alpha" },
-
-    -- Copilot
-    { import = "lazyvim.plugins.extras.ai.copilot" },
+    { import = "lazyvim.plugins.extras.editor.snacks_explorer" },
+    { import = "lazyvim.plugins.extras.editor.snacks_picker" },
 
     -- Formatting plugins
     { import = "lazyvim.plugins.extras.formatting.biome" },
@@ -38,7 +35,7 @@ require("lazy").setup({
   },
   defaults = {
     lazy = false,
-    version = "*",
+    version = false,
   },
   install = {},
   checker = { enabled = false },
