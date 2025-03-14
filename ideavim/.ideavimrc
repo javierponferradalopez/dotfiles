@@ -1,0 +1,79 @@
+""" IdeaVim Configuration """
+
+" Map leader to space ---------------------
+let mapleader=" "
+
+" Plugins --------------------------------
+Plug 'tpope/vim-surround'
+Plug 'terryma/vim-multiple-cursors'
+Plug 'vim-scripts/argtextobj.vim'
+Plug 'vim-scripts/ReplaceWithRegister'
+Plug 'preservim/nerdtree'
+Plug 'tpope/vim-commentary'
+
+" Plugin settings -------------------------
+let g:argtextobj_pairs="[:],(:),<:>"
+
+" Common settings -------------------------
+set showmode
+set so=5
+set incsearch
+set nu
+set clipboard+=unnamed
+
+" Idea specific settings ------------------
+set ideajoin
+set ideastatusicon=gray
+set idearefactormode=keep
+
+" Navigation Mappings ---------------------
+nmap H <Action>(PreviousTab)
+nmap L <Action>(NextTab)
+map <leader>sf <Action>(GotoFile)
+map <leader>sw <Action>(FindInPath)
+map <leader>sb /
+map <leader>sp <Action>($LRU)
+map <leader>ss <Action>(FileStructurePopup)
+map <leader>sd <Action>(ActivateTODOToolWindow)
+
+nmap <leader>gr <Action>(ShowUsages)
+nmap <leader>gd <Action>(GotoDeclaration)
+nmap <leader>gy <Action>(GotoTypeDeclaration)
+nmap <leader>gi <Action>(GotoImplementation)
+nmap <leader>gt <Action>(GotoTest)
+
+map <leader>bd <action>(CloseContent)
+
+" File Explorer (NERDTree) ----------------
+nmap <leader>e :NERDTreeToggle<CR>
+nmap <leader>E :NERDTreeFind<CR>
+map <C-h> :NERDTreeFocus<CR>
+
+" Terminal Integration --------------------
+map <leader>t <Action>(ActivateTerminalToolWindow)
+map <C-j> <Action>(ActivateTerminalToolWindow)
+
+" Window & Split Navigation ---------------
+map <C-l> <Action>(NextSplitter)
+map <leader>h <Action>(HideAllWindows)
+
+" Editing Enhancements --------------------
+vmap J <Action>(MoveLineDown)
+vmap K <Action>(MoveLineUp)
+
+map <leader>cd <Action>(ShowErrorDescription)
+map <leader>ca <Action>(ShowIntentionActions)
+map <leader>y <Action>(CopyReferencePopupGroup)
+
+command! EslintFix action Javascript.Linters.EsLint.Fix
+
+" Refactoring -----------------------------
+map <leader>cr <Action>(Refactorings.QuickListPopupAction)
+map <leader>crn <Action>(RenameElement)
+map <leader>crm <Action>(ExtractMethod)
+map <leader>crv <Action>(IntroduceVariable)
+map <leader>crf <Action>(IntroduceField)
+map <leader>crs <Action>(ChangeSignature)
+
+" Git ----------------------------
+map <leader>ghb <Action>(Annotate)

@@ -13,3 +13,7 @@ We need to source all of the configurations by running the following command:
 ```bash
 stow -t $HOME -v alacritty nvim
 ```
+Or if you use the Webstorm
+```bash
+stow -t $HOME -v alacritty ideavim 
+```
