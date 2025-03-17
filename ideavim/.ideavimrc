@@ -46,14 +46,14 @@ map <leader>bd <action>(CloseContent)
 
 " File Explorer (NERDTree) ----------------
 nmap <leader>e :NERDTreeToggle<CR>
-nmap <leader>E :NERDTreeFind<CR>
-map <C-h> :NERDTreeFocus<CR>
+nmap <leader>E :NERDTreeFocus<CR>
 
 " Terminal Integration --------------------
 map <leader>t <Action>(ActivateTerminalToolWindow)
 map <C-j> <Action>(ActivateTerminalToolWindow)
 
 " Window & Split Navigation ---------------
+map <C-h> <Action>(PrevSplitter)
 map <C-l> <Action>(NextSplitter)
 map <leader>h <Action>(HideAllWindows)
 
@@ -64,6 +64,7 @@ vmap K <Action>(MoveLineUp)
 map <leader>cd <Action>(ShowErrorDescription)
 map <leader>ca <Action>(ShowIntentionActions)
 map <leader>y <Action>(CopyReferencePopupGroup)
+nmap K <Action>(ShowHoverInfo)
 
 command! EslintFix action Javascript.Linters.EsLint.Fix
 
