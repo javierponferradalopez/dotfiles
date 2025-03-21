@@ -17,7 +17,7 @@ let g:argtextobj_pairs="[:],(:),<:>"
 " Common settings -------------------------
 set showmode
 set so=5
-set incsearch
+set ignorecase
 set nu
 set clipboard+=unnamed
 
@@ -55,7 +55,9 @@ map <C-j> <Action>(ActivateTerminalToolWindow)
 " Window & Split Navigation ---------------
 map <C-h> <Action>(PrevSplitter)
 map <C-l> <Action>(NextSplitter)
-map <leader>h <Action>(HideAllWindows)
+map <leader>wh <Action>(HideAllWindows)
+map <leader>wl <Action>(MoveTabRight)
+map <leader>wd <Action>(MoveTabDown)
 
 " Editing Enhancements --------------------
 vmap J <Action>(MoveLineDown)
@@ -65,8 +67,6 @@ map <leader>cd <Action>(ShowErrorDescription)
 map <leader>ca <Action>(ShowIntentionActions)
 map <leader>y <Action>(CopyReferencePopupGroup)
 nmap K <Action>(ShowHoverInfo)
-
-command! EslintFix action Javascript.Linters.EsLint.Fix
 
 " Refactoring -----------------------------
 map <leader>cr <Action>(Refactorings.QuickListPopupAction)
@@ -78,3 +78,7 @@ map <leader>crs <Action>(ChangeSignature)
 
 " Git ----------------------------
 map <leader>ghb <Action>(Annotate)
+
+" GitHub Copilot -------------
+map <leader>aa <Action>(copilot.chat.show)
+map <leader>ac <Action>(copilot.chat.inline)
