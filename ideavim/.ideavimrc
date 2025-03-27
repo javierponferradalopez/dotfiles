@@ -34,7 +34,8 @@ map <leader>sw <Action>(FindInPath)
 map <leader>sb /
 map <leader>sp <Action>($LRU)
 map <leader>ss <Action>(FileStructurePopup)
-map <leader>sd <Action>(ActivateTODOToolWindow)
+map <leader>st <Action>(ActivateTODOToolWindow)
+map <leader>sd <Action>(ActivateProblemsViewToolWindow)
 
 nmap <leader>gr <Action>(ShowUsages)
 nmap <leader>gd <Action>(GotoDeclaration)
@@ -77,7 +78,9 @@ map <leader>crf <Action>(IntroduceField)
 map <leader>crs <Action>(ChangeSignature)
 
 " Git ----------------------------
-map <leader>ghb <Action>(Annotate)
+nmap <leader>ghb <Action>(Annotate)
+nmap <leader>gc <Action>(CheckinProject)<CR><Action>(ActivateVersionControlToolWindow)
+
 
 " GitHub Copilot -------------
 map <leader>aa <Action>(copilot.chat.show)
