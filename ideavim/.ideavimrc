@@ -20,6 +20,7 @@ set so=5
 set ignorecase
 set nu
 set clipboard+=unnamed
+set relativenumber
 
 " Idea specific settings ------------------
 set ideajoin
