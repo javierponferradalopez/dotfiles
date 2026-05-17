@@ -50,20 +50,22 @@ map <leader>bd <action>(CloseContent)
 nmap <leader>e :NERDTreeToggle<CR>
 nmap <leader>E :NERDTreeFocus<CR>
 
-" Terminal Integration --------------------
-map <leader>t <Action>(ActivateTerminalToolWindow)
-map <C-j> <Action>(ActivateTerminalToolWindow)
-
 " Window & Split Navigation ---------------
 map <C-h> <Action>(PrevSplitter)
 map <C-l> <Action>(NextSplitter)
 map <leader>wh <Action>(HideAllWindows)
 map <leader>wl <Action>(MoveTabRight)
 map <leader>wd <Action>(MoveTabDown)
+map <leader>mz <Action>(ToggleZenMode)
+map <leader>mf <Action>(ToggleDistractionFreeMode)
 
 " Editing Enhancements --------------------
 vmap J <Action>(MoveLineDown)
 vmap K <Action>(MoveLineUp)
+map ff <Action>(ExpandCollapseToggleAction)
+map fE <Action>(ExpandAllRegions)
+map fF <Action>(CollapseAllRegions)
+
 
 map <leader>cd <Action>(ShowErrorDescription)
 map <leader>ca <Action>(ShowIntentionActions)
@@ -81,8 +83,14 @@ map <leader>crs <Action>(ChangeSignature)
 " Git ----------------------------
 nmap <leader>ghb <Action>(Annotate)
 nmap <leader>gc <Action>(CheckinProject)<CR><Action>(ActivateVersionControlToolWindow)
+nmap <leader>gh <Action>(Vcs.ShowTabbedFileHistory)
 
 
 " GitHub Copilot -------------
-map <leader>aa <Action>(copilot.chat.show)
-map <leader>ac <Action>(copilot.chat.inline)
+map <leader>gac <Action>(copilot.chat.show)
+map <leader>gal <Action>(copilot.chat.inline)
+
+map <leader>aa <Action>(com.anthropic.code.plugin.actions.OpenClaudeInTerminalAction)
+
+" Testing ---------------------
+map <leader>t <Action>(ActivateRunToolWindow)

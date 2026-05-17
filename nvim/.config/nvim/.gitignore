@@ -1,0 +1,12 @@
+tags
+test.sh
+.luarc.json
+nvim
+
+spell/
+
+# nvim-pack-lock.json tracks exact plugin versions - recommended to commit this
+# Uncomment the line below to ignore it if you prefer not to track it
+nvim-pack-lock.json
+
+.DS_Store

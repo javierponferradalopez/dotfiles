@@ -1,66 +1,69 @@
-# My LazyVim configuration
+# My Neovim configuration
 
-Configuration user for [LazyVim](https://www.lazyvim.org/)
+Personal Neovim config built on native `vim.pack` (no lazy.nvim).
 
-## 🛠️ Install
+## Requirements
 
-#### Requeriments
-* Neovim >= 0.9.0 ([INSTALL.md](https://github.com/neovim/neovim/blob/master/INSTALL.md))
-* Use Nerd Font (I recommend  [JetBrains Mono](https://www.programmingfonts.org/#jetbrainsmono))
-* For `telescope.nvim`
-  * live grep: `ripgrep`
-  * find files: `fd-find`
-* For `LuaShip`
-  * `make`
-* For `nvim-treesitter`
-  * `gcc` (C compiler for nvim-treesitter).
-  * `g++`
-  * `nodejs`
+- Neovim >= 0.11
+- [Nerd Font](https://www.nerdfonts.com/) (recommended: [JetBrains Mono](https://www.programmingfonts.org/#jetbrainsmono))
+- `ripgrep` — for Telescope live grep
+- `fd` — for Telescope file finder
+- `gcc` / `g++` — for nvim-treesitter
+- `make` — for LuaSnip / telescope-fzf-native
+- `nodejs` — for some LSP servers (recommended via [nvm](https://github.com/nvm-sh/nvm))
 
+macOS:
+```shell
+brew install gcc ripgrep fd make
+```
 
-Linux
+Linux:
 ```shell
 sudo apt-get install -y gcc ripgrep fd-find g++ make
 ```
-Macos
-```shell
-sudo brew install gcc ripgrep fd make
-```
->[!NOTE]
->For install `nodejs` I recommend use [nvm](https://github.com/nvm-sh/nvm)
 
-#### Clone the repository
-
-You can also just clone this repository directly if you do not want to track your user configuration in GitHub.
-Clone repository in temporal folder
+## Install
 
 ```shell
-git clone https://github.com/jponferrada26/dotnvim /tmp/dotnvim
-```
-
-#### Backup old nvim configuration
-
-```shell
+# Backup existing config
 mv ~/.config/nvim ~/.config/nvim.bak
+mv ~/.local/share/nvim ~/.local/share/nvim.bak
+mv ~/.local/state/nvim ~/.local/state/nvim.bak
+mv ~/.cache/nvim ~/.cache/nvim.bak
 
-```
+# Clone
+git clone https://github.com/jponferrada26/dotnvim ~/.config/nvim
 
-#### Remove temporal files (Recommended)
-
-```shell
-mv ~/.local/share/nvim
-mv ~/.local/state/nvim
-mv ~/.cache/nvim
-```
-
-#### Extract LazyNvim configuration and move to your nvim
-
-```shell
-cp -r /tmp/dotnvim/lazyvim ~/.config/nvim
-```
-
-#### Start Neovim
-
-```shell
+# Start (plugins install automatically on first run)
 nvim
 ```
+
+## Structure
+
+```
+init.lua                     — single-file config, organized in numbered sections
+lua/custom/plugins/          — user plugins (auto-loaded, one file per plugin)
+  dashboard.lua              — mini.starter dashboard
+  neo-tree.lua               — file explorer (<leader>e)
+  tabline.lua                — mini.tabline with buffer navigation
+  rip-substitute.lua         — search/replace with ripgrep (<leader>fs)
+  subproject.lua             — per-directory project focus (<leader>sp)
+```
+
+## Key sections in init.lua
+
+| # | Section | Contents |
+|---|---------|----------|
+| 1 | Foundation | Options, leaders, keymaps, autocmds |
+| 2 | Plugin manager | `vim.pack` setup, build hooks |
+| 3 | UI / Core UX | Colorscheme, which-key, mini.ai, mini.surround, statusline |
+| 4 | Search & Navigation | Telescope + extensions |
+| 5 | LSP | fidget, mason, mason-lspconfig, LspAttach keymaps |
+| 6 | Formatting | conform.nvim (biome / prettierd / stylua) |
+| 7 | Autocomplete & Snippets | blink.cmp + LuaSnip |
+| 8 | Treesitter | nvim-treesitter (auto-install on FileType) |
+| 9 | User plugins | loads `lua/custom/plugins/` |
+
+---
+
+Originally forked from [kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim).
