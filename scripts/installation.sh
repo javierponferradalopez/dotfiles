@@ -24,6 +24,7 @@ brew_install "ripgrep"
 brew_install "fd"
 brew_install "make"
 brew_install "fzf"
+brew_install "tree-sitter-cli"
 echo "\n-------------------------"
 
 echo "\n${RED}Remember to install a Nerd Font (https://www.nerdfonts.com/font-downloads)${NC}"
