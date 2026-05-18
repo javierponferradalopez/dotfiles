@@ -149,6 +149,13 @@ do
   vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
   vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
+  vim.keymap.set('n', '<leader>wl', '<C-w>v', { desc = '[W]indow split right' })
+  vim.keymap.set('n', '<leader>wj', '<C-w>s', { desc = '[W]indow split below' })
+  vim.keymap.set('n', '<leader>wc', '<C-w>c', { desc = '[W]indow [C]lose' })
+
+  vim.keymap.set('v', '<S-j>', ":move '>+1<CR>gv=gv", { desc = 'Move selection down' })
+  vim.keymap.set('v', '<S-k>', ":move '<-2<CR>gv=gv", { desc = 'Move selection up' })
+
   -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
   -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
   -- vim.keymap.set("n", "<C-S-l>", "<C-w>L", { desc = "Move window to the right" })
@@ -268,21 +275,6 @@ do
   -- since otherwise the icons won't display properly.
   if vim.g.have_nerd_font then vim.pack.add { gh 'nvim-tree/nvim-web-devicons' } end
 
-  -- Here is a more advanced configuration example that passes options to `gitsigns.nvim`
-  --
-  -- See `:help gitsigns` to understand what each configuration key does.
-  -- Adds git related signs to the gutter, as well as utilities for managing changes
-  vim.pack.add { gh 'lewis6991/gitsigns.nvim' }
-  require('gitsigns').setup {
-    signs = {
-      add = { text = '+' }, ---@diagnostic disable-line: missing-fields
-      change = { text = '~' }, ---@diagnostic disable-line: missing-fields
-      delete = { text = '_' }, ---@diagnostic disable-line: missing-fields
-      topdelete = { text = '‾' }, ---@diagnostic disable-line: missing-fields
-      changedelete = { text = '~' }, ---@diagnostic disable-line: missing-fields
-    },
-  }
-
   -- Useful plugin to show you pending keybinds.
   vim.pack.add { gh 'folke/which-key.nvim' }
   require('which-key').setup {
@@ -293,8 +285,8 @@ do
     spec = {
       { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
       { '<leader>t', group = '[T]oggle' },
-      { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } }, -- Enable gitsigns recommended keymaps first
-      { 'gr', group = 'LSP Actions', mode = { 'n' } },
+      { '<leader>w', group = '[W]indow' },
+{ 'gr', group = 'LSP Actions', mode = { 'n' } },
     },
   }
 
@@ -349,6 +341,28 @@ do
   -- cursor location to LINE:COLUMN
   ---@diagnostic disable-next-line: duplicate-set-field
   statusline.section_location = function() return '%2l:%-2v' end
+
+  ---@diagnostic disable-next-line: duplicate-set-field
+  statusline.active = function()
+    local mode, mode_hl = statusline.section_mode { trunc_width = 120 }
+    local git = statusline.section_git { trunc_width = 75 }
+    local diagnostics = statusline.section_diagnostics { trunc_width = 75 }
+    local filename = statusline.section_filename { trunc_width = 140 }
+    local fileinfo = statusline.section_fileinfo { trunc_width = 120 }
+    local location = statusline.section_location { trunc_width = 75 }
+    local subproject = vim.g.focused_subproject and ('[' .. vim.g.focused_subproject .. ']') or ''
+
+    return statusline.combine_groups {
+      { hl = mode_hl, strings = { mode } },
+      { hl = 'MiniStatuslineDevinfo', strings = { git, diagnostics } },
+      '%<',
+      { hl = 'MiniStatuslineFilename', strings = { filename } },
+      '%=',
+      { hl = 'MiniStatuslineDevinfo', strings = { subproject } },
+      { hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
+      { hl = mode_hl, strings = { location } },
+    }
+  end
 
   -- ... and there is more!
   --  Check out: https://github.com/nvim-mini/mini.nvim
@@ -418,10 +432,7 @@ do
   local function search_title()
     return vim.g.focused_subproject and ('Search · ' .. vim.g.focused_subproject) or 'Search · (repo root)'
   end
-  vim.keymap.set({ 'n', 'v' }, '<leader>sw', function()
-    builtin.grep_string { prompt_title = search_title() }
-  end, { desc = '[S]earch current [W]ord' })
-  vim.keymap.set('n', '<leader>sg', function()
+  vim.keymap.set('n', '<leader>sw', function()
     builtin.live_grep { prompt_title = search_title() }
   end, { desc = '[S]earch by [G]rep' })
   vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
@@ -695,8 +706,10 @@ do
     callback = function()
       local clients = vim.lsp.get_clients { name = 'eslint', bufnr = 0 }
       if #clients == 0 then return end
-      local has_biome = vim.uv.fs_stat(vim.fn.getcwd() .. '/biome.json')
-      if not has_biome then vim.cmd.EslintFixAll() end
+      local lsp_util = require 'lspconfig.util'
+      local pkg_root = lsp_util.root_pattern 'package.json'(vim.api.nvim_buf_get_name(0))
+      local has_biome = pkg_root and vim.uv.fs_stat(pkg_root .. '/biome.json')
+      if not has_biome then vim.cmd.LspEslintFixAll() end
     end,
   })
 
