@@ -26,9 +26,7 @@ do
 
   -- Make line numbers default
   vim.o.number = true
-  -- You can also add relative line numbers, to help with jumping.
-  --  Experiment for yourself to see if you like it!
-  -- vim.o.relativenumber = true
+  vim.o.relativenumber = true
 
   -- Enable mouse mode, can be useful for resizing splits for example!
   vim.o.mouse = 'a'
@@ -91,6 +89,12 @@ do
   vim.o.confirm = true
   vim.o.swapfile = false
 
+  -- Folding: open files expanded, no extra gutter, preserve syntax in closed folds
+  vim.o.foldlevelstart = 99
+  vim.o.foldcolumn = '0'
+  vim.o.foldtext = ''
+  vim.opt.fillchars:append { fold = ' ' }
+
   -- [[ Basic Keymaps ]]
   --  See `:help vim.keymap.set()`
 
@@ -123,7 +127,22 @@ do
   }
 
   vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
-  vim.keymap.set('n', '<leader>y', function() vim.fn.setreg('+', vim.fn.expand('%:.')) end, { desc = 'Copy path to current file' })
+  vim.keymap.set('n', '<leader>y', function()
+    local options = {
+      { label = 'Relative path', value = vim.fn.expand '%:.' },
+      { label = 'Absolute path', value = vim.fn.expand '%:p' },
+      { label = 'Filename only', value = vim.fn.expand '%:t' },
+    }
+    vim.ui.select(options, {
+      prompt = 'Copy path:',
+      format_item = function(item) return item.label .. '  ' .. item.value end,
+    }, function(choice)
+      if choice then
+        vim.fn.setreg('+', choice.value)
+        vim.notify('Copied: ' .. choice.value)
+      end
+    end)
+  end, { desc = 'Copy path to current file' })
   vim.keymap.set('n', '<leader>T', ':vsplit | term<CR>', { desc = 'Open terminal in vertical split', silent = true })
 
   -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
@@ -155,6 +174,9 @@ do
 
   vim.keymap.set('v', '<S-j>', ":move '>+1<CR>gv=gv", { desc = 'Move selection down' })
   vim.keymap.set('v', '<S-k>', ":move '<-2<CR>gv=gv", { desc = 'Move selection up' })
+
+  -- Fold toggle (zR/zM nativos para expandir/colapsar todo)
+  vim.keymap.set('n', 'ff', 'za', { desc = 'Toggle fold under cursor' })
 
   -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
   -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -409,9 +431,34 @@ do
   vim.pack.add(telescope_plugins)
 
   -- See `:help telescope` and `:help telescope.setup()`
+  local function open_multi_in_tabs(prompt_bufnr)
+    local actions = require 'telescope.actions'
+    local action_state = require 'telescope.actions.state'
+    local multi = action_state.get_current_picker(prompt_bufnr):get_multi_selection()
+    if #multi > 0 then
+      actions.close(prompt_bufnr)
+      local origin_buf = vim.api.nvim_get_current_buf()
+      local is_disposable = vim.api.nvim_buf_get_name(origin_buf) == ''
+        or vim.bo[origin_buf].filetype == 'ministarter'
+      for _, entry in ipairs(multi) do
+        local path = entry.path or entry.filename
+        if path then vim.cmd('tabedit ' .. vim.fn.fnameescape(path)) end
+      end
+      if is_disposable then
+        pcall(vim.api.nvim_buf_delete, origin_buf, { force = false })
+      end
+    else
+      actions.select_tab(prompt_bufnr)
+    end
+  end
+
   require('telescope').setup {
     defaults = {
-      path_display = { 'truncate' },
+      path_display = { 'filename_first' },
+      mappings = {
+        i = { ['<C-t>'] = open_multi_in_tabs },
+        n = { ['<C-t>'] = open_multi_in_tabs },
+      },
     },
     -- pickers = {}
     extensions = {
@@ -480,6 +527,23 @@ do
     builtin.current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
       winblend = 10,
       previewer = false,
+      fuzzy = false,
+      attach_mappings = function(prompt_bufnr)
+        local actions = require 'telescope.actions'
+        local action_state = require 'telescope.actions.state'
+        local action_set = require 'telescope.actions.set'
+        actions.select_default:replace(function()
+          local prompt = action_state.get_current_picker(prompt_bufnr):_get_prompt()
+          action_set.select(prompt_bufnr, 'default')
+          if prompt ~= '' then
+            vim.schedule(function()
+              vim.fn.setreg('/', prompt)
+              vim.cmd 'set hlsearch'
+            end)
+          end
+        end)
+        return true
+      end,
     })
   end
   vim.keymap.set('n', '<leader>/', current_buffer_fuzzy_find, { desc = '[/] Fuzzily search in current buffer' })
@@ -622,6 +686,15 @@ do
     -- But for many setups, the LSP (`ts_ls`) will work just fine
     eslint = {},
     ts_ls = {},
+    biome = {
+      -- Only attach when the focused project (CWD set by SubProject.pick) has
+      -- biome.json. Prevents the monorepo-root biome.json from leaking into
+      -- sub-projects that use ESLint only.
+      root_dir = function(_, on_dir)
+        local cwd = vim.fn.getcwd()
+        if vim.uv.fs_stat(cwd .. '/biome.json') then on_dir(cwd) end
+      end,
+    },
 
     stylua = {}, -- Used to format Lua code
 
@@ -698,29 +771,31 @@ do
   -- [[ Formatting ]]
   vim.pack.add { gh 'stevearc/conform.nvim' }
 
-  -- ESLint autofix must be registered before conform so it runs first on BufWritePre
-  -- Checks biome.json in CWD (set by SubProject.pick) so focused sub-projects
-  -- without biome still get ESLint, even if the monorepo root has one.
+  -- Decide tooling based on the focused project's CWD only (set by SubProject.pick),
+  -- so the monorepo-root biome.json doesn't leak into ESLint-only sub-projects.
+  local function focused_uses_biome()
+    return vim.uv.fs_stat(vim.fn.getcwd() .. '/biome.json') ~= nil
+  end
+
+  -- Lint autofix must be registered before conform so it runs first on BufWritePre.
   vim.api.nvim_create_autocmd('BufWritePre', {
     pattern = { '*.js', '*.jsx', '*.ts', '*.tsx' },
     callback = function()
-      local clients = vim.lsp.get_clients { name = 'eslint', bufnr = 0 }
-      if #clients == 0 then return end
-      local lsp_util = require 'lspconfig.util'
-      local pkg_root = lsp_util.root_pattern 'package.json'(vim.api.nvim_buf_get_name(0))
-      local has_biome = pkg_root and vim.uv.fs_stat(pkg_root .. '/biome.json')
-      if not has_biome then vim.cmd.LspEslintFixAll() end
+      if focused_uses_biome() then
+        if #vim.lsp.get_clients { name = 'biome', bufnr = 0 } == 0 then return end
+        vim.lsp.buf.code_action {
+          context = { only = { 'source.fixAll.biome' }, diagnostics = {} },
+          apply = true,
+        }
+      else
+        if #vim.lsp.get_clients { name = 'eslint', bufnr = 0 } == 0 then return end
+        vim.cmd.LspEslintFixAll()
+      end
     end,
   })
 
-  local function biome_or_prettierd(bufnr)
-    local lsp_util = require('lspconfig.util')
-    local root_dir = lsp_util.root_pattern('biome.json')(vim.api.nvim_buf_get_name(bufnr))
-    if root_dir then
-      return { 'biome' }
-    else
-      return { 'prettierd' }
-    end
+  local function biome_or_prettierd()
+    return focused_uses_biome() and { 'biome' } or { 'prettierd' }
   end
 
   require('conform').setup {
@@ -803,7 +878,9 @@ do
       -- <c-k>: Toggle signature help
       --
       -- See `:help blink-cmp-config-keymap` for defining your own keymap
-      preset = 'default',
+      preset = 'enter',
+      ['<Tab>'] = { 'select_and_accept', 'fallback' },
+      ['<S-Tab>'] = { 'select_prev', 'fallback' },
 
       -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
       --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -868,8 +945,8 @@ do
 
     -- Enable treesitter based folds
     -- For more info on folds see `:help folds`
-    -- vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
-    -- vim.wo.foldmethod = 'expr'
+    vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+    vim.wo.foldmethod = 'expr'
 
     -- Check if treesitter indentation is available for this language, and if so enable it
     -- in case there is no indent query, the indentexpr will fallback to the vim's built in one
