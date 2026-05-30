@@ -143,7 +143,7 @@ do
       end
     end)
   end, { desc = 'Copy path to current file' })
-  vim.keymap.set('n', '<leader>T', ':vsplit | term<CR>', { desc = 'Open terminal in vertical split', silent = true })
+  vim.keymap.set('n', '<leader>T', ':split | term<CR>', { desc = 'Open terminal in horizontal split', silent = true })
 
   -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
   -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -171,6 +171,9 @@ do
   vim.keymap.set('n', '<leader>wl', '<C-w>v', { desc = '[W]indow split right' })
   vim.keymap.set('n', '<leader>wj', '<C-w>s', { desc = '[W]indow split below' })
   vim.keymap.set('n', '<leader>wc', '<C-w>c', { desc = '[W]indow [C]lose' })
+
+  vim.keymap.set('n', '<F5>', '<cmd>vertical resize -5<CR>', { desc = 'Window shrink width' })
+  vim.keymap.set('n', '<F6>', '<cmd>vertical resize +5<CR>', { desc = 'Window grow width' })
 
   vim.keymap.set('v', '<S-j>', ":move '>+1<CR>gv=gv", { desc = 'Move selection down' })
   vim.keymap.set('v', '<S-k>', ":move '<-2<CR>gv=gv", { desc = 'Move selection up' })
@@ -259,6 +262,12 @@ do
         vim.cmd 'TSUpdate'
         return
       end
+
+      if name == 'markdown-preview.nvim' then
+        if not ev.data.active then vim.cmd.packadd 'markdown-preview.nvim' end
+        vim.fn['mkdp#util#install']()
+        return
+      end
     end,
   })
 end
@@ -305,6 +314,7 @@ do
     icons = { mappings = vim.g.have_nerd_font },
     -- Document existing key chains
     spec = {
+      { '<leader>c', group = '[C]laude Code', mode = { 'n', 'v' } },
       { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
       { '<leader>t', group = '[T]oggle' },
       { '<leader>w', group = '[W]indow' },
@@ -350,6 +360,9 @@ do
   -- - sd'   - [S]urround [D]elete [']quotes
   -- - sr)'  - [S]urround [R]eplace [)] [']
   require('mini.surround').setup()
+
+  -- Auto-close pairs: (), [], {}, '', "", ``
+  require('mini.pairs').setup()
 
   -- Simple and easy statusline.
   --  You could remove this setup call if you don't like it,
@@ -475,13 +488,22 @@ do
   vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
   vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
   vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
-  vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
+  vim.keymap.set('n', '<leader>sF', function()
+    builtin.find_files { hidden = true }
+  end, { desc = '[S]earch [F]iles (incl. hidden)' })
+  vim.keymap.set('n', '<leader>ss', builtin.lsp_document_symbols, { desc = '[S]earch [S]ymbols (document)' })
   local function search_title()
     return vim.g.focused_subproject and ('Search · ' .. vim.g.focused_subproject) or 'Search · (repo root)'
   end
   vim.keymap.set('n', '<leader>sw', function()
     builtin.live_grep { prompt_title = search_title() }
   end, { desc = '[S]earch by [G]rep' })
+  vim.keymap.set('n', '<leader>sW', function()
+    builtin.live_grep {
+      prompt_title = search_title() .. ' (incl. hidden)',
+      additional_args = function() return { '--hidden' } end,
+    }
+  end, { desc = '[S]earch by [G]rep (incl. hidden)' })
   vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
   vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
   vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
@@ -601,6 +623,13 @@ do
   -- Useful status updates for LSP.
   vim.pack.add { gh 'j-hui/fidget.nvim' }
   require('fidget').setup {}
+
+  -- Drop late documentHighlight responses whose buffer was wiped mid-request (e.g. on subproject chdir).
+  local hl_handler = vim.lsp.handlers['textDocument/documentHighlight']
+  vim.lsp.handlers['textDocument/documentHighlight'] = function(err, result, ctx, config)
+    if not vim.api.nvim_buf_is_valid(ctx.bufnr) then return end
+    return hl_handler(err, result, ctx, config)
+  end
 
   --  This function gets run when an LSP attaches to a particular buffer.
   --    That is to say, every time a new file is opened that is associated with
