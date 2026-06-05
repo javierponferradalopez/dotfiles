@@ -130,6 +130,7 @@ do
   vim.keymap.set('n', '<leader>y', function()
     local options = {
       { label = 'Relative path', value = vim.fn.expand '%:.' },
+      { label = 'Relative path with line', value = vim.fn.expand '%:.' .. ':' .. vim.fn.line '.' },
       { label = 'Absolute path', value = vim.fn.expand '%:p' },
       { label = 'Filename only', value = vim.fn.expand '%:t' },
     }
@@ -180,6 +181,20 @@ do
 
   -- Fold toggle (zR/zM nativos para expandir/colapsar todo)
   vim.keymap.set('n', 'ff', 'za', { desc = 'Toggle fold under cursor' })
+
+  vim.keymap.set('n', '<leader>ga', function()
+    local file = vim.fn.expand '%:p'
+    if file == '' then
+      vim.notify('No file in current buffer', vim.log.levels.WARN)
+      return
+    end
+    local result = vim.fn.system('git add -- ' .. vim.fn.shellescape(file))
+    if vim.v.shell_error ~= 0 then
+      vim.notify('git add failed: ' .. result, vim.log.levels.ERROR)
+    else
+      vim.notify('Staged: ' .. vim.fn.expand '%:.')
+    end
+  end, { desc = '[G]it [A]dd current file' })
 
   -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
   -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -304,7 +319,7 @@ do
   --
   -- Here we only install `nvim-web-devicons` (which adds pretty icons) if we have a Nerd Font,
   -- since otherwise the icons won't display properly.
-  if vim.g.have_nerd_font then vim.pack.add { gh 'nvim-tree/nvim-web-devicons' } end
+  vim.pack.add { gh 'nvim-tree/nvim-web-devicons' }
 
   -- Useful plugin to show you pending keybinds.
   vim.pack.add { gh 'folke/which-key.nvim' }
@@ -314,7 +329,10 @@ do
     icons = { mappings = vim.g.have_nerd_font },
     -- Document existing key chains
     spec = {
+      { '<leader>b', group = '[B]uffer' },
       { '<leader>c', group = '[C]laude Code', mode = { 'n', 'v' } },
+      { '<leader>g', group = '[G]it' },
+      { '<leader>r', group = '[R]un' },
       { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
       { '<leader>t', group = '[T]oggle' },
       { '<leader>w', group = '[W]indow' },
@@ -328,8 +346,8 @@ do
   -- change the command under that to load whatever the name of that colorscheme is.
   --
   -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-  vim.pack.add { gh 'rebelot/kanagawa.nvim' }
-  vim.cmd.colorscheme 'kanagawa'
+  vim.pack.add { gh 'folke/tokyonight.nvim' }
+  vim.cmd.colorscheme 'tokyonight-moon'
 
   -- Highlight todo, notes, etc in comments
   vim.pack.add { gh 'folke/todo-comments.nvim' }

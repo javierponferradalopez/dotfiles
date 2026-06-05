@@ -11,6 +11,13 @@ require('neo-tree').setup {
   filesystem = {
     follow_current_file = { enabled = false },
     hijack_netrw_behavior = 'open_current',
+    -- Only treat dotfiles (names starting with `.`) as hidden. Don't hide
+    -- gitignored or untracked files, which neo-tree masks by default.
+    filtered_items = {
+      hide_dotfiles = true,
+      hide_gitignored = false,
+      hide_hidden = false,
+    },
     window = {
       mappings = {
         ['<leader>e'] = 'close_window',

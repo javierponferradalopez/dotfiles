@@ -1,15 +1,6 @@
 vim.pack.add { 'https://github.com/lewis6991/gitsigns.nvim' }
 
-local function open_commit_in_browser(hash)
-  local remote = vim.fn.system('git remote get-url origin 2>/dev/null'):gsub('%s+$', '')
-  if remote == '' then
-    vim.notify('No git remote found', vim.log.levels.WARN)
-    return
-  end
-  remote = remote:gsub('^git@([^:]+):', 'https://%1/')
-  remote = remote:gsub('%.git$', '')
-  vim.ui.open(remote .. '/commit/' .. hash)
-end
+local git_browser = require 'custom.git_browser'
 
 require('gitsigns').setup {
   on_attach = function(bufnr)
@@ -52,7 +43,7 @@ vim.api.nvim_create_autocmd('FileType', {
         string.format('git blame -L %d,%d --porcelain %s 2>/dev/null | head -1', lnum, lnum, vim.fn.shellescape(file))
       ):match '^([0-9a-f]+)'
       if hash and #hash > 0 and not hash:match '^0+$' then
-        open_commit_in_browser(hash)
+        git_browser.open_commit(hash)
       else
         vim.notify('No commit found for this line', vim.log.levels.WARN)
       end
