@@ -47,8 +47,8 @@ nmap <leader>gt <Action>(GotoTest)
 map <leader>bd <action>(CloseContent)
 
 " File Explorer (NERDTree) ----------------
-nmap <leader>e :NERDTreeToggle<CR>
-nmap <leader>E :NERDTreeFocus<CR>
+nmap <leader>e :NERDTreeFind<CR>
+nmap <leader>E :NERDTreeToggle<CR>
 
 " Window & Split Navigation ---------------
 map <C-h> <Action>(PrevSplitter)

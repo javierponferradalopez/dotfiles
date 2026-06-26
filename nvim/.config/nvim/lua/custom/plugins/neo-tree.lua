@@ -3,8 +3,8 @@ vim.pack.add {
   'https://github.com/MunifTanjim/nui.nvim',
 }
 
-vim.keymap.set('n', '<leader>e', '<Cmd>Neotree toggle<CR>', { desc = '[E]xplorer toggle' })
-vim.keymap.set('n', '<leader>E', '<Cmd>Neotree reveal<CR>', { desc = '[E]xplorer reveal current file' })
+vim.keymap.set('n', '<leader>e', '<Cmd>Neotree reveal<CR>', { desc = '[E]xplorer reveal current file (focus)' })
+vim.keymap.set('n', '<leader>E', '<Cmd>Neotree show<CR>', { desc = '[E]xplorer open (no focus)' })
 
 require('neo-tree').setup {
   close_if_last_window = true,

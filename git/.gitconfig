@@ -1,0 +1,24 @@
+[alias]
+	st = status
+	br = branch
+	co = checkout
+	ci = commit
+	sw = switch
+	df = diff
+	lg = log
+	ps = push
+	pl = pull
+	fc = fetch
+	mg = merge
+	rb = rebase
+	rs = restore
+	cp = cherry-pick
+	sh = stash
+	rl = reflog
+	rv = revert
+	tg = tag
+	rm = remote
+	cl = clone
+	ch = checkout
+[user]
+	name = ponfe
