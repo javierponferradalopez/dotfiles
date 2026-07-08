@@ -16,6 +16,7 @@ brew_install "git"
 brew_install "stow"
 brew_install "zsh"
 brew_install "jq"
+brew_install "herdr"
 echo "\n-------------------------"
 
 echo "\nNvim's dependencies -----"
