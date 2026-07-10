@@ -8,6 +8,7 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 
 | Package     | Application        | Symlinks into                        |
 | ----------- | ------------------ | ------------------------------------ |
+| `zsh`       | Zsh (+ vi mode)    | `~/.zshrc`                           |
 | `alacritty` | Alacritty terminal | `~/.config/alacritty/`               |
 | `nvim`      | Neovim             | `~/.config/nvim/`                    |
 | `ideavim`   | IdeaVim (WebStorm) | `~/.ideavimrc`                       |
@@ -37,13 +38,13 @@ Run from the repository root, choosing the packages you want. For the Neovim
 setup:
 
 ```bash
-stow -t $HOME -v alacritty nvim git claude herdr
+stow -t $HOME -v zsh alacritty nvim git claude herdr
 ```
 
 For the WebStorm / IdeaVim setup:
 
 ```bash
-stow -t $HOME -v alacritty ideavim git claude herdr
+stow -t $HOME -v zsh alacritty ideavim git claude herdr
 ```
 
 ## Uninstall
@@ -51,5 +52,5 @@ stow -t $HOME -v alacritty ideavim git claude herdr
 Remove the symlinks for any package with the `-D` flag:
 
 ```bash
-stow -t $HOME -v -D alacritty nvim git claude herdr
+stow -t $HOME -v -D zsh alacritty nvim git claude herdr
 ```
