@@ -11,7 +11,6 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 | `zsh`       | Zsh (+ vi mode)    | `~/.zshrc`                           |
 | `alacritty` | Alacritty terminal | `~/.config/alacritty/`               |
 | `nvim`      | Neovim             | `~/.config/nvim/`                    |
-| `ideavim`   | IdeaVim (WebStorm) | `~/.ideavimrc`                       |
 | `git`       | Git                | `~/.gitconfig`                       |
 | `claude`    | Claude Code        | `~/.claude/` (settings, statusline…) |
 | `herdr`     | Herdr multiplexer  | `~/.config/herdr/config.toml`        |
@@ -34,17 +33,10 @@ already present:
 
 ### 2. Symlink the packages
 
-Run from the repository root, choosing the packages you want. For the Neovim
-setup:
+Run from the repository root, choosing the packages you want:
 
 ```bash
 stow -t $HOME -v zsh alacritty nvim git claude herdr
-```
-
-For the WebStorm / IdeaVim setup:
-
-```bash
-stow -t $HOME -v zsh alacritty ideavim git claude herdr
 ```
 
 ## Uninstall
