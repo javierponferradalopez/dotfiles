@@ -1,6 +1,38 @@
 vim.pack.add { 'https://github.com/sindrets/diffview.nvim' }
 
-require('diffview').setup {}
+-- Buffers already listed before Diffview was opened. On close we wipe only the
+-- file buffers Diffview brought in (leaving the ones you already had open, and
+-- any still visible in a window), so closing Diffview doesn't clutter the buffer
+-- list with every file you inspected.
+local pre_diffview_bufs = {}
+
+local function snapshot_buffers()
+  pre_diffview_bufs = {}
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.bo[b].buflisted then
+      pre_diffview_bufs[b] = true
+    end
+  end
+end
+
+require('diffview').setup {
+  hooks = {
+    view_closed = function()
+      vim.schedule(function()
+        for _, b in ipairs(vim.api.nvim_list_bufs()) do
+          if
+            vim.api.nvim_buf_is_valid(b)
+            and vim.bo[b].buflisted
+            and not pre_diffview_bufs[b]
+            and vim.fn.bufwinid(b) == -1
+          then
+            pcall(vim.api.nvim_buf_delete, b, {})
+          end
+        end
+      end)
+    end,
+  },
+}
 
 local function default_branch()
   local function git(args)
@@ -16,6 +48,17 @@ local function default_branch()
   end
 end
 
+vim.keymap.set('n', '<leader>gg', function()
+  -- Toggle: if a Diffview tab is already open, close it instead of opening another.
+  if require('diffview.lib').get_current_view() then
+    vim.cmd 'DiffviewClose'
+    return
+  end
+  -- No args: review all changed files in the working tree (staged + unstaged) vs HEAD.
+  snapshot_buffers()
+  vim.cmd 'DiffviewOpen'
+end, { desc = '[G]it working tree diff' })
+
 vim.keymap.set('n', '<leader>gD', function()
   -- Toggle: if a Diffview tab is already open, close it instead of opening another.
   if require('diffview.lib').get_current_view() then
@@ -27,6 +70,7 @@ vim.keymap.set('n', '<leader>gD', function()
     vim.notify('No default branch found (origin/main or origin/master)', vim.log.levels.WARN)
     return
   end
+  snapshot_buffers()
   vim.cmd('DiffviewOpen ' .. branch .. '...HEAD')
 end, { desc = '[G]it [D]iff vs default branch' })
 
@@ -36,6 +80,7 @@ vim.keymap.set('n', '<leader>gh', function()
     vim.cmd 'DiffviewClose'
     return
   end
+  snapshot_buffers()
   vim.cmd 'DiffviewFileHistory %'
 end, { desc = '[G]it file [H]istory' })
 
