@@ -36,7 +36,16 @@ already present:
 Run from the repository root, choosing the packages you want:
 
 ```bash
-stow -t $HOME -v zsh alacritty nvim git claude herdr
+stow -t $HOME -v zsh alacritty nvim git claude
+```
+
+`herdr` must be stowed with `--no-folding` so that `~/.config/herdr` stays a
+real directory and only `config.toml` is symlinked. Without it, Stow folds the
+whole directory into a single symlink and Herdr's runtime files (logs, session,
+sockets…) end up written back inside this repository:
+
+```bash
+stow -t $HOME -v --no-folding herdr
 ```
 
 ## Uninstall
