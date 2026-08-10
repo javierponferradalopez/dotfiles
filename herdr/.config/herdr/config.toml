@@ -1,3 +1,4 @@
+onboarding = false
 # herdr configuration
 # Place this file at ~/.config/herdr/config.toml
 
@@ -104,7 +105,7 @@ close_tab = "prefix+shift+d"
 # close_pane = "prefix+x"
 # zoom = "prefix+z"       # legacy alias: fullscreen
 # resize_mode = "prefix+r"
-# toggle_sidebar = "prefix+b"
+toggle_sidebar = "prefix+b"  # Ctrl+b b -> colapsa/expande la barra lateral izquierda
 
 # Navigate-mode movement. These local shortcuts win while navigate mode is open.
 # They are independent from focus_pane_*. Do not include prefix+, esc, enter, tab, or 1..9 here.
