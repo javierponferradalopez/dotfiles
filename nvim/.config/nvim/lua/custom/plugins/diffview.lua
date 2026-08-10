@@ -17,12 +17,6 @@ end
 
 require('diffview').setup {
   hooks = {
-    -- Diffview uses Vim's native diff folding (foldmethod=diff), which collapses
-    -- unchanged lines. Disable folding in each diff window so the full file shows.
-    diff_buf_win_enter = function(_, winid)
-      vim.wo[winid].foldenable = false
-      vim.wo[winid].foldlevel = 99
-    end,
     view_closed = function()
       vim.schedule(function()
         for _, b in ipairs(vim.api.nvim_list_bufs()) do
