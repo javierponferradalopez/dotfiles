@@ -51,6 +51,17 @@ local function find_subprojects(root)
   return items
 end
 
+-- A focused directory is a *project* when it carries one of the package
+-- MARKERS, and a plain *module* otherwise. Deciding it here (instead of at the
+-- call site) keeps the tag honest: picking a directory with `pick_directory`
+-- that happens to be a package root still reports itself as a project.
+local function kind_of(dir)
+  for _, marker in ipairs(MARKERS) do
+    if vim.uv.fs_stat(dir .. '/' .. marker) then return 'project' end
+  end
+  return 'module'
+end
+
 -- Focus a directory: chdir into it and tag it, so every subsequent search
 -- (and `reset` below) treats it as the working scope. Exposed via SubProject
 -- so other pickers can focus an arbitrary directory, not just a sub-project.
@@ -62,6 +73,7 @@ local function focus(dir)
   local rel = vim.fn.fnamemodify(dir, ':~:.')
   vim.fn.chdir(dir)
   vim.g.focused_subproject = vim.fn.fnamemodify(dir, ':t')
+  vim.g.focused_subproject_kind = kind_of(dir)
   vim.notify('Focused: ' .. rel)
 end
 
@@ -163,6 +175,7 @@ local function reset()
   cache[root] = nil
   vim.fn.chdir(root)
   vim.g.focused_subproject = nil
+  vim.g.focused_subproject_kind = nil
   vim.notify('Reset to: ' .. vim.fn.fnamemodify(root, ':~'))
 end
 

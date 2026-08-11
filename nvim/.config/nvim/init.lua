@@ -403,7 +403,16 @@ do
     local filename = statusline.section_filename { trunc_width = 140 }
     local fileinfo = statusline.section_fileinfo { trunc_width = 120 }
     local location = statusline.section_location { trunc_width = 75 }
-    local subproject = vim.g.focused_subproject and ('[' .. vim.g.focused_subproject .. ']') or ''
+    -- Focused search scope, prefixed with an icon that tells a package root
+    -- (project) apart from a plain directory (module). See custom/plugins/subproject.lua.
+    local subproject = ''
+    if vim.g.focused_subproject then
+      -- Nerd Font glyphs written as codepoint escapes so they survive tooling that
+      -- mangles private-use characters: nf-oct-package and nf-fa-folder.
+      local icons = { project = '\u{f487}', module = '\u{f07b}' }
+      local icon = icons[vim.g.focused_subproject_kind] or icons.module
+      subproject = icon .. ' [' .. vim.g.focused_subproject .. ']'
+    end
 
     return statusline.combine_groups {
       { hl = mode_hl, strings = { mode } },
