@@ -2,7 +2,7 @@ local starter = require 'mini.starter'
 
 local items = {
   { key = 'n', icon = '', desc = 'New File',     action = 'ene | startinsert' },
-  { key = 'p', icon = '', desc = 'Sub-projects', action = function() SubProject.pick() end },
+  { key = 'p', icon = '', desc = 'Sub-projects', action = function() SubProject.pick() end },
   { key = 't', icon = '', desc = 'Terminal',     action = 'split | term' },
   { key = 'c', icon = '', desc = 'Config',       action = function() require('telescope.builtin').find_files { cwd = vim.fn.stdpath 'config' } end },
   { key = 'q', icon = '', desc = 'Quit',         action = 'qa' },
