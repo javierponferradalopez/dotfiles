@@ -51,6 +51,20 @@ local function find_subprojects(root)
   return items
 end
 
+-- Focus a directory: chdir into it and tag it, so every subsequent search
+-- (and `reset` below) treats it as the working scope. Exposed via SubProject
+-- so other pickers can focus an arbitrary directory, not just a sub-project.
+local function focus(dir)
+  -- Normalize first: `fd --type d` yields a trailing slash, which would make
+  -- `:t` (the statusline tag) come out empty. `:p:h` also absolutizes it, so
+  -- chdir never has to resolve a relative path through 'cdpath'.
+  dir = vim.fn.fnamemodify(dir, ':p:h')
+  local rel = vim.fn.fnamemodify(dir, ':~:.')
+  vim.fn.chdir(dir)
+  vim.g.focused_subproject = vim.fn.fnamemodify(dir, ':t')
+  vim.notify('Focused: ' .. rel)
+end
+
 local function pick()
   local pickers = require 'telescope.pickers'
   local finders = require 'telescope.finders'
@@ -87,10 +101,56 @@ local function pick()
           actions.close(prompt_bufnr)
           local selection = action_state.get_selected_entry()
           if not selection then return end
-          local item = selection.value
-          vim.fn.chdir(item.dir)
-          vim.g.focused_subproject = item.name
-          vim.notify('Focused: ' .. item.rel)
+          focus(selection.value.dir)
+        end)
+        return true
+      end,
+    })
+    :find()
+end
+
+-- Same idea as `pick`, but over *every* directory, not just those carrying a
+-- package marker. Lists from the current scope, so once a project is focused
+-- you only see its own modules; <C-g> widens back to the whole repo.
+local function pick_directory(opts)
+  opts = opts or {}
+  local pickers = require 'telescope.pickers'
+  local finders = require 'telescope.finders'
+  local conf = require('telescope.config').values
+  local actions = require 'telescope.actions'
+  local action_state = require 'telescope.actions.state'
+
+  local root = opts.from_repo_root and repo_root() or vim.fn.getcwd()
+  local cmd
+  if vim.fn.executable 'fd' == 1 then
+    cmd = { 'fd', '--type', 'd', '--hidden' }
+    for _, ex in ipairs(EXCLUDES) do
+      vim.list_extend(cmd, { '--exclude', ex })
+    end
+  else
+    cmd = { 'find', '.', '-type', 'd' }
+    for _, ex in ipairs(EXCLUDES) do
+      vim.list_extend(cmd, { '-not', '-path', '*/' .. ex .. '/*' })
+    end
+  end
+
+  pickers
+    .new({}, {
+      prompt_title = 'Focus directory in ' .. vim.fn.fnamemodify(root, ':t') .. '  (<C-g> whole repo)',
+      finder = finders.new_oneshot_job(cmd, { cwd = root }),
+      sorter = conf.generic_sorter {},
+      attach_mappings = function(prompt_bufnr, map)
+        actions.select_default:replace(function()
+          actions.close(prompt_bufnr)
+          local selection = action_state.get_selected_entry()
+          if not selection then return end
+          -- Entries are relative to `root`, which may not be the current cwd.
+          focus(root .. '/' .. selection[1])
+        end)
+        -- Escape the current scope without having to reset first.
+        map({ 'i', 'n' }, '<C-g>', function()
+          actions.close(prompt_bufnr)
+          vim.schedule(function() pick_directory { from_repo_root = true } end)
         end)
         return true
       end,
@@ -106,7 +166,8 @@ local function reset()
   vim.notify('Reset to: ' .. vim.fn.fnamemodify(root, ':~'))
 end
 
-SubProject = { pick = pick, reset = reset }
+SubProject = { pick = pick, reset = reset, focus = focus, pick_directory = pick_directory }
 
 vim.keymap.set('n', '<leader>sp', pick, { desc = 'Focus Sub-project' })
-vim.keymap.set('n', '<leader>sP', reset, { desc = 'Reset to repo root' })
+vim.keymap.set('n', '<leader>sR', reset, { desc = '[S]earch [R]eset focus to repo root' })
+vim.keymap.set('n', '<leader>sm', pick_directory, { desc = 'Focus [M]odule (any directory)' })
