@@ -9,6 +9,13 @@ export PATH="$HOME/.local/bin:$PATH"
 # editor
 export EDITOR=nvim
 
+# completion system (enables Tab autocompletion)
+autoload -Uz compinit && compinit
+
+# navigable selection menu (arrow keys) and case-insensitive matching
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
 # prompt
 source "$(brew --prefix)/opt/spaceship/spaceship.zsh"
 
