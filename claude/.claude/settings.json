@@ -16,7 +16,8 @@
       "Bash(git show:*)",
       "Bash(git branch:*)",
       "Bash(git remote:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git add:*)"
     ],
     "deny": [
       "Read(**/.env*)",
