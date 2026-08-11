@@ -742,6 +742,7 @@ do
     -- But for many setups, the LSP (`ts_ls`) will work just fine
     eslint = {},
     ts_ls = {},
+    astro = {},
     biome = {
       -- Only attach when the focused project (CWD set by SubProject.pick) has
       -- biome.json. Prevents the monorepo-root biome.json from leaking into
