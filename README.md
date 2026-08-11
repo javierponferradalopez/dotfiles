@@ -12,8 +12,8 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 | `alacritty` | Alacritty terminal | `~/.config/alacritty/`               |
 | `nvim`      | Neovim             | `~/.config/nvim/`                    |
 | `git`       | Git                | `~/.gitconfig`                       |
-| `claude`    | Claude Code        | `~/.claude/` (settings, statusline…) |
 | `herdr`     | Herdr multiplexer  | `~/.config/herdr/config.toml`        |
+
 
 ## Installation
 
@@ -36,7 +36,7 @@ already present:
 Run from the repository root, choosing the packages you want:
 
 ```bash
-stow -t $HOME -v zsh alacritty nvim git claude
+stow -t $HOME -v zsh alacritty nvim git
 ```
 
 `herdr` must be stowed with `--no-folding` so that `~/.config/herdr` stays a
@@ -48,10 +48,18 @@ sockets…) end up written back inside this repository:
 stow -t $HOME -v --no-folding herdr
 ```
 
+### Claude Code (copy, not link)
+
+`~/.claude/` is never symlinked.
+
+```bash
+cp -Rn claude/.claude/. "$HOME/.claude/"
+```
+
 ## Uninstall
 
 Remove the symlinks for any package with the `-D` flag:
 
 ```bash
-stow -t $HOME -v -D zsh alacritty nvim git claude herdr
+stow -t $HOME -v -D zsh alacritty nvim git herdr
 ```
