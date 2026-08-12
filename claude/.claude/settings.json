@@ -29,11 +29,11 @@
       "Read(**/.aws/**)",
       "Read(**/.ssh/**)",
       "Read(**/config/database.yml)",
-      "Bash(rm -rf:*)",
-      "Bash(git push:*)"
+      "Bash(rm -rf:*)"
     ],
     "ask": [
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   },
   "hooks": {},
