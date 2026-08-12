@@ -17,7 +17,8 @@
       "Bash(git branch:*)",
       "Bash(git remote:*)",
       "Bash(git stash:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [
       "Read(**/.env*)",
@@ -32,7 +33,6 @@
       "Bash(rm -rf:*)"
     ],
     "ask": [
-      "Bash(git commit:*)",
       "Bash(git push:*)"
     ]
   },
