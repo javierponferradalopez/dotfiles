@@ -726,6 +726,20 @@ do
     end,
   })
 
+  -- ts_ls only understands .ts/.tsx natively, so "Find References" from a
+  -- .ts symbol silently skips usages inside .astro files. @astrojs/ts-plugin
+  -- (per-project devDependency + tsconfig "plugins" entry) teaches tsserver
+  -- to see .astro imports; wire its on-disk location in per project, if present.
+  local function load_astro_ts_plugin(config)
+    local root = config.root_dir or vim.fn.getcwd()
+    local plugin_path = root .. '/node_modules/@astrojs/ts-plugin'
+    if vim.uv.fs_stat(plugin_path) then
+      config.init_options = config.init_options or {}
+      config.init_options.plugins = config.init_options.plugins or {}
+      table.insert(config.init_options.plugins, { name = '@astrojs/ts-plugin', location = plugin_path })
+    end
+  end
+
   -- Enable the following language servers
   --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
   --  See `:help lsp-config` for information about keys and how to configure
@@ -741,7 +755,12 @@ do
     --
     -- But for many setups, the LSP (`ts_ls`) will work just fine
     eslint = {},
-    ts_ls = {},
+    ts_ls = {
+      before_init = function(_, config)
+        load_astro_ts_plugin(config)
+        -- Add more per-project tsserver plugin loaders here as they come up.
+      end,
+    },
     astro = {},
     biome = {
       -- Only attach when the focused project (CWD set by SubProject.pick) has
