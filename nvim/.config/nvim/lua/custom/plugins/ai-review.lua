@@ -6,39 +6,156 @@
 -- are applied, <leader>ac wipes the markers out of the buffer and <leader>aC
 -- out of the whole project.
 --
+-- Notes are written in a floating window rather than the cmdline, which cannot
+-- render long prose. <CR> saves and <S-CR> breaks the line, as in a chat prompt.
+-- A note that spans several lines keeps the keyword on the first one only and
+-- continues on plain comment lines below it.
+--
 -- Highlighting comes from todo-comments (the `AIREVIEW` keyword is registered
 -- in init.lua, SECTION 3), so no plugin is added here.
 
 local KEYWORD = 'AI-REVIEW'
 -- Lua pattern used to find markers again: `-` is a quantifier, so escape it.
 local MARKER_PATTERN = 'AI%-REVIEW:'
+-- A note longer than one line continues on plain comment lines, padded so the
+-- text lines up under the first one. That padding is not decoration: it is what
+-- tells a continuation apart from an ordinary comment when clearing the note.
+local CONTINUATION = string.rep(' ', #KEYWORD + 2)
 
--- Render `comment` as a comment for the current filetype, indented like line
--- `lnum` (1-indexed) so the marker lines up with the code it refers to.
-local function marker_line(comment, lnum)
-  -- Split the commentstring instead of substituting into it: that keeps the
-  -- comment out of gsub's replacement string (where `%` is special, so a plain
-  -- `50%` would break it) and lets us normalise the spacing ourselves, since
-  -- some filetypes ship `-- %s` and others `/*%s*/`. Filetypes without a
-  -- commentstring still deserve a usable marker, hence the fallback.
-  local prefix, suffix = vim.bo.commentstring:match '^(.*)%%s(.*)$'
+-- The comment delimiters for `buf`'s filetype, already trimmed.
+--
+-- Split the commentstring instead of substituting into it: that keeps the note
+-- out of gsub's replacement string (where `%` is special, so a plain `50%` would
+-- break it) and lets us normalise the spacing ourselves, since some filetypes
+-- ship `-- %s` and others `/*%s*/`. Filetypes without a commentstring still
+-- deserve a usable marker, hence the fallback.
+local function comment_parts(buf)
+  local prefix, suffix = vim.bo[buf].commentstring:match '^(.*)%%s(.*)$'
   if not prefix then prefix, suffix = '#', '' end
 
-  local text = vim.trim(prefix) .. ' ' .. KEYWORD .. ': ' .. comment
-  if vim.trim(suffix) ~= '' then text = text .. ' ' .. vim.trim(suffix) end
-
-  local indent = (vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1] or ''):match '^%s*'
-
-  return indent .. text
+  return vim.trim(prefix), vim.trim(suffix)
 end
 
--- Ask for a comment and insert it as a marker above line `lnum`.
-local function add_marker(lnum)
-  vim.ui.input({ prompt = KEYWORD .. ': ' }, function(comment)
-    if not comment or comment:match '^%s*$' then return end
+-- Split the note into the lines it will keep in the buffer: trailing whitespace
+-- and blank lines go, and the block is dedented, so whatever indentation is left
+-- is the one that was meant (a list, a snippet) rather than the popup's.
+local function note_lines(note)
+  local lines = {}
 
-    local line = marker_line(vim.trim(comment), lnum)
-    vim.api.nvim_buf_set_lines(0, lnum - 1, lnum - 1, false, { line })
+  for _, line in ipairs(vim.split(note, '\n')) do
+    line = line:gsub('%s+$', '')
+    if line ~= '' then table.insert(lines, line) end
+  end
+
+  local common = math.huge
+  for _, line in ipairs(lines) do
+    common = math.min(common, #line:match '^%s*')
+  end
+
+  for i, line in ipairs(lines) do
+    lines[i] = line:sub(common + 1)
+  end
+
+  return lines
+end
+
+-- Render `note` as comments for `buf`'s filetype, indented like line `lnum`
+-- (1-indexed) so the marker lines up with the code it refers to. Only the first
+-- line carries the keyword; the rest are plain comments padded to line up under
+-- it, so one note is one hit when listing them.
+local function marker_block(note, lnum, buf)
+  local prefix, suffix = comment_parts(buf)
+  local indent = (vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or ''):match '^%s*'
+
+  local markers = {}
+
+  for i, text in ipairs(note_lines(note)) do
+    local body = i == 1 and (KEYWORD .. ': ' .. text) or (CONTINUATION .. text)
+    local line = indent .. prefix .. ' ' .. body
+    if suffix ~= '' then line = line .. ' ' .. suffix end
+    table.insert(markers, line)
+  end
+
+  return markers
+end
+
+-- Floating scratch buffer to compose a note in. These markers are prose, and
+-- the built-in cmdline prompt garbles anything longer than the screen: it
+-- scrolls sideways and leaves the redraw artefacts behind.
+local function open_note_window(on_confirm)
+  local prev_win = vim.api.nvim_get_current_win()
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = 'wipe'
+  -- Prose, not code: indentation carried over from the previous line would end
+  -- up in the marker, and the note is inserted with its own indentation anyway.
+  vim.bo[buf].autoindent = false
+
+  local width = math.min(80, vim.o.columns - 4)
+  local height = math.min(10, math.max(5, math.floor(vim.o.lines * 0.25)))
+
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = math.floor((vim.o.lines - height) / 2) - 1,
+    col = math.floor((vim.o.columns - width) / 2),
+    style = 'minimal',
+    border = 'rounded',
+    title = ' ' .. KEYWORD .. ' ',
+    title_pos = 'center',
+    footer = ' <CR> save · <S-CR> new line · <C-c>/q cancel ',
+    footer_pos = 'center',
+  })
+
+  -- The whole point of the window: long notes wrap instead of scrolling away.
+  vim.wo[win].wrap = true
+  vim.wo[win].linebreak = true
+
+  local closed = false
+  local function close()
+    if closed then return end
+    closed = true
+
+    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
+    if vim.api.nvim_win_is_valid(prev_win) then vim.api.nvim_set_current_win(prev_win) end
+  end
+
+  local function confirm()
+    local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n')
+    -- Insert into the original buffer, not the scratch one we are leaving.
+    close()
+    on_confirm(text)
+  end
+
+  -- Chat-like bindings: <CR> sends the note, shift (or ctrl/alt, for terminals
+  -- that do not tell <S-CR> apart) breaks the line.
+  vim.keymap.set({ 'n', 'i' }, '<CR>', confirm, { buffer = buf, desc = 'Save note' })
+  vim.keymap.set({ 'n', 'i' }, '<C-s>', confirm, { buffer = buf, desc = 'Save note' })
+  vim.keymap.set('i', '<S-CR>', '<CR>', { buffer = buf, desc = 'New line' })
+  vim.keymap.set('i', '<C-CR>', '<CR>', { buffer = buf, desc = 'New line' })
+  vim.keymap.set('i', '<M-CR>', '<CR>', { buffer = buf, desc = 'New line' })
+  vim.keymap.set('n', '<S-CR>', 'o', { buffer = buf, desc = 'New line' })
+  vim.keymap.set('n', '<C-CR>', 'o', { buffer = buf, desc = 'New line' })
+  vim.keymap.set('n', '<M-CR>', 'o', { buffer = buf, desc = 'New line' })
+
+  vim.keymap.set({ 'n', 'i' }, '<C-c>', close, { buffer = buf, desc = 'Discard note' })
+  vim.keymap.set('n', 'q', close, { buffer = buf, desc = 'Discard note' })
+
+  -- Clicking or jumping away discards the draft instead of leaking the window.
+  vim.api.nvim_create_autocmd('BufLeave', { buffer = buf, once = true, callback = close })
+
+  vim.cmd 'startinsert'
+end
+
+-- Ask for a note and insert it as a marker above line `lnum`.
+local function add_marker(lnum)
+  local buf = vim.api.nvim_get_current_buf()
+
+  open_note_window(function(note)
+    local markers = marker_block(note, lnum, buf)
+    if #markers == 0 then return end
+
+    vim.api.nvim_buf_set_lines(buf, lnum - 1, lnum - 1, false, markers)
   end)
 end
 
@@ -55,12 +172,28 @@ local function marker_lines(buf)
   return hits
 end
 
--- Remove every marker line from `buf` and return how many went away.
+-- Remove every note from `buf`, continuation lines included, and return how many
+-- notes went away.
 local function clear_markers(buf)
   local hits = marker_lines(buf)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 
-  for _, i in ipairs(hits) do
-    vim.api.nvim_buf_set_lines(buf, i - 1, i, false, {})
+  -- Descending, so deleting a note leaves the earlier line numbers untouched.
+  for _, first in ipairs(hits) do
+    -- Everything before the keyword — indent and comment prefix — read off the
+    -- marker itself rather than the buffer's commentstring, which may have been
+    -- lost (no filetype) or changed since the note was written. A continuation
+    -- repeats it and then pushes its text right; an ordinary comment starts one
+    -- space after the prefix, so a stray comment below a note is left alone.
+    local lead = lines[first]:sub(1, lines[first]:find(MARKER_PATTERN) - 1)
+    local continuation = '^' .. vim.pesc(lead) .. '  +%S'
+
+    local last = first
+    while lines[last + 1] and lines[last + 1]:match(continuation) do
+      last = last + 1
+    end
+
+    vim.api.nvim_buf_set_lines(buf, first - 1, last, false, {})
   end
 
   return #hits
