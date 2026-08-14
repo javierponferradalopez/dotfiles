@@ -329,6 +329,7 @@ do
     icons = { mappings = vim.g.have_nerd_font },
     -- Document existing key chains
     spec = {
+      { '<leader>a', group = '[A]I review', mode = { 'n', 'v' } },
       { '<leader>b', group = '[B]uffer' },
       { '<leader>c', group = '[C]laude Code', mode = { 'n', 'v' } },
       { '<leader>g', group = '[G]it' },
@@ -351,7 +352,15 @@ do
 
   -- Highlight todo, notes, etc in comments
   vim.pack.add { gh 'folke/todo-comments.nvim' }
-  require('todo-comments').setup { signs = false }
+  require('todo-comments').setup {
+    -- Show each keyword's icon in the sign column. Note this outranks gitsigns
+    -- (priority 8 vs 6), so on a line that is both a TODO and a git change the
+    -- keyword icon wins — drop `sign_priority` below 6 to flip that.
+    signs = true,
+    -- Markers left for the AI agent to review (see lua/custom/plugins/ai-review.lua).
+    keywords = { AIREVIEW = { icon = '󰚩 ', color = 'ai', alt = { 'AI-REVIEW' } } },
+    colors = { ai = { 'DiagnosticInfo', '#7aa2f7' } },
+  }
 
   -- [[ mini.nvim ]]
   --  A collection of various small independent plugins/modules
