@@ -24,8 +24,7 @@ require('gitsigns').setup {
   end,
 }
 
--- Same shortcut as diffview file history (<S-CR>): open the commit under the
--- cursor in the browser.
+-- Open the commit under the cursor in the browser.
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'gitsigns-blame',
   callback = function(ev)
@@ -35,7 +34,7 @@ vim.api.nvim_create_autocmd('FileType', {
     -- comes first in the layout (neo-tree, another file, ...) instead.
     local src_buf = vim.api.nvim_win_get_buf(vim.fn.win_getid(vim.fn.winnr '#'))
 
-    vim.keymap.set('n', '<S-CR>', function()
+    local function open_commit()
       -- The blame window has one line per line of the file and gitsigns keeps
       -- both scrollbound, so the cursor line indexes the blame entries directly.
       local ok, gs_cache = pcall(require, 'gitsigns.cache')
@@ -48,6 +47,22 @@ vim.api.nvim_create_autocmd('FileType', {
       else
         vim.notify('No commit found for this line', vim.log.levels.WARN)
       end
-    end, { buffer = ev.buf, desc = 'Open commit in browser (<S-CR>)' })
+    end
+
+    -- Gitsigns sets the filetype (which fires this autocmd) *before* registering
+    -- its own <CR> for the blame context menu, so mapping <CR> here would be
+    -- overwritten right after. Defer one tick to land last, and rehome the menu
+    -- to g?. <M-CR> is what a terminal sending ESC+CR for Shift+Enter actually
+    -- produces (see the Shift+Return binding in alacritty.toml); <S-CR> only
+    -- arrives from terminals that speak the CSI-u keyboard protocol.
+    vim.schedule(function()
+      if not vim.api.nvim_buf_is_valid(ev.buf) then return end
+
+      for _, lhs in ipairs { '<CR>', '<M-CR>', '<S-CR>' } do
+        vim.keymap.set('n', lhs, open_commit, { buffer = ev.buf, desc = 'Open commit in browser' })
+      end
+
+      vim.keymap.set('n', 'g?', function() vim.cmd.popup ']GitsignsBlame' end, { buffer = ev.buf, desc = 'Blame context menu' })
+    end)
   end,
 })
