@@ -84,11 +84,15 @@ vim.keymap.set('n', '<leader>gh', function()
   vim.cmd 'DiffviewFileHistory %'
 end, { desc = '[G]it file [H]istory' })
 
--- Same shortcut as gitsigns blame (<S-CR>): open the commit under the cursor in the browser.
+-- Open the commit under the cursor in the browser. <CR> is left alone here (it
+-- opens the diff for the entry, which is more useful); <M-CR> is what a terminal
+-- sending ESC+CR for Shift+Enter actually produces (see the Shift+Return binding
+-- in alacritty.toml), while <S-CR> only arrives from terminals that speak the
+-- CSI-u keyboard protocol.
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'DiffviewFileHistory',
   callback = function(ev)
-    vim.keymap.set('n', '<S-CR>', function()
+    local function open_commit()
       local view = require('diffview.lib').get_current_view()
       local entry = view and view.panel:get_log_entry_at_cursor()
       local hash = entry and entry.commit and entry.commit.hash
@@ -97,6 +101,10 @@ vim.api.nvim_create_autocmd('FileType', {
       else
         vim.notify('No commit under cursor', vim.log.levels.WARN)
       end
-    end, { buffer = ev.buf, desc = 'Open commit in browser (<S-CR>)' })
+    end
+
+    for _, lhs in ipairs { '<M-CR>', '<S-CR>' } do
+      vim.keymap.set('n', lhs, open_commit, { buffer = ev.buf, desc = 'Open commit in browser' })
+    end
   end,
 })
