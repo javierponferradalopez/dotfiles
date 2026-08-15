@@ -2,9 +2,10 @@
 --
 -- Drop `AI-REVIEW:` comments next to the code you want to discuss, keep coding,
 -- and when you are done point the agent at them ("go through the AI-REVIEW
--- comments"). It greps them just like you do with <leader>al. Once the changes
--- are applied, <leader>ac wipes the markers out of the buffer and <leader>aC
--- out of the whole project.
+-- comments"). It greps them just like you do with <leader>al, applies the
+-- obvious ones once you approve the list, talks the rest through one by one,
+-- and deletes each marker as it settles it. <leader>ac and <leader>aC wipe the
+-- markers by hand, from the buffer or the whole project.
 --
 -- Notes are written in a floating window rather than the cmdline, which cannot
 -- render long prose. <CR> saves and <S-CR> breaks the line, as in a chat prompt.
