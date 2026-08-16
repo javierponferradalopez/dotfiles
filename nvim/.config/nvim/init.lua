@@ -331,7 +331,6 @@ do
     spec = {
       { '<leader>a', group = '[A]I review', mode = { 'n', 'v' } },
       { '<leader>b', group = '[B]uffer' },
-      { '<leader>c', group = '[C]laude Code', mode = { 'n', 'v' } },
       { '<leader>g', group = '[G]it' },
       { '<leader>r', group = '[R]un' },
       { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
