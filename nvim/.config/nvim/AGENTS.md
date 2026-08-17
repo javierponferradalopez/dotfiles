@@ -44,6 +44,8 @@ Every `.lua` file here (except `init.lua`) is **auto-required** by the loop in `
 
 `lua/custom/git_browser.lua` is a shared local module (not a plugin) required by other custom files — keep cross-file helpers like this as plain modules under `lua/custom/`.
 
+`lua/ai-review/` is the one exception to that layout: a self-contained module tree (`store` / `marks` / `ui` / `init`) staged to be lifted out into a standalone plugin, so it sits at the top of `lua/` as a plugin would. Its file in `custom/plugins/` is only the shim that calls `setup()` and sets the keymaps. Use this shape only for code that is genuinely headed out of this repo.
+
 ## Conventions
 
 - Keymap descriptions use the `[X]` bracket convention to mark the mnemonic letter (e.g. `'[G]it [B]lame'`), which feeds which-key.
