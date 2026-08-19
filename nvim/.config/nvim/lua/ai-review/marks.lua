@@ -139,20 +139,26 @@ end
 
 ------------------------------------------------------------------------- render
 
+-- Measured in display cells rather than bytes: `#word` is the length of an
+-- encoding, and for anything but ASCII it is not the width of anything. Wrapping
+-- on it breaks the block short for every accent and every CJK character in it, so
+-- the running width is carried alongside the line instead of remeasuring it.
 local function wrap(text, width)
   local out = {}
 
   for _, paragraph in ipairs(vim.split(text, '\n')) do
-    local line = ''
+    local line, used = '', 0
 
     for word in paragraph:gmatch '%S+' do
+      local size = vim.fn.strdisplaywidth(word)
+
       if line == '' then
-        line = word
-      elseif #line + #word + 1 <= width then
-        line = line .. ' ' .. word
+        line, used = word, size
+      elseif used + size + 1 <= width then
+        line, used = line .. ' ' .. word, used + size + 1
       else
         table.insert(out, line)
-        line = word
+        line, used = word, size
       end
     end
 
@@ -168,7 +174,11 @@ end
 -- these lines, which keeps it in the same column as the bar down the code instead
 -- of one cell adrift inside the content.
 local function virt_lines(buf, comment, lnum)
-  local indent = (vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or ''):match '^%s*'
+  -- Copied as the spaces it displays as, not verbatim: virtual text does not
+  -- expand a tab, so carrying one over would leave the block adrift from the code
+  -- it is supposed to line up with in every tab-indented file there is.
+  local leading = (vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or ''):match '^%s*'
+  local indent = (' '):rep(vim.fn.strdisplaywidth(leading))
   local width = math.max(40, vim.api.nvim_win_get_width(0) - #indent - 10)
   local lines = {}
 
