@@ -33,21 +33,30 @@ local ui = require 'ai-review.ui'
 
 local M = {}
 
+local bar = false
+
 local function highlights()
   -- The focused sign follows the resting one by default: focus is carried by the
   -- shape, which reads without colour and reads to everyone. Linking it separately
   -- is what lets `:hi AIReviewSignFocused` add colour on top for anyone who wants
   -- the open dot to stand out further.
+
   local groups = {
     AIReviewSign = 'DiagnosticInfo',
     AIReviewSignFocused = 'AIReviewSign',
-    AIReviewText = 'Comment',
+    AIReviewText = 'AIReviewSign',
+    AIReviewBar = 'AIReviewSign',
+    AIReviewBarCode = 'NonText',
   }
 
   for group, target in pairs(groups) do
     vim.api.nvim_set_hl(0, group, { link = target, default = true })
   end
+
+  vim.api.nvim_set_hl(0, 'AIReviewRange', bar and { default = true } or { link = 'AIReviewSign', default = true })
 end
+
+local function counted(n) return n == 1 and '1 review comment' or ('%d review comments'):format(n) end
 
 -- Take in whatever the agent did to the store and repaint. Returns nothing:
 -- everything it has to say, it says through the store and a notification.
@@ -65,7 +74,7 @@ local function refresh(buffers)
 
   -- Said out loud because it happened off-screen: comments you wrote are missing
   -- from the margin now, and a count is the whole of what is left to tell.
-  if gone > 0 then vim.notify(('%d AI review comment(s) done and deleted by the agent'):format(gone)) end
+  if gone > 0 then vim.notify(counted(gone) .. ' done and deleted by the agent') end
 end
 
 ---------------------------------------------------------------------- the actions
@@ -77,7 +86,7 @@ function M.comment(last)
   local buf = vim.api.nvim_get_current_buf()
   local rel = store.relpath(vim.api.nvim_buf_get_name(buf))
   if not rel then
-    vim.notify('ai-review: this file is outside the project', vim.log.levels.WARN)
+    vim.notify('This file is outside the project', vim.log.levels.WARN)
     return
   end
 
@@ -141,7 +150,7 @@ function M.delete()
 
   local comment = marks.at_cursor()
   if not comment then
-    vim.notify 'No AI review comment here'
+    vim.notify 'No review comment here'
     return
   end
 
@@ -154,7 +163,7 @@ function M.delete()
   marks.attach(buf, true)
   marks.clear_focus(buf)
 
-  vim.notify('Removed AI review comment: ' .. quoted)
+  vim.notify('Removed review comment: ' .. quoted)
 end
 
 function M.list()
@@ -171,7 +180,7 @@ function M.clear_buffer()
   marks.attach(buf, true)
   marks.clear_focus(buf)
 
-  vim.notify(removed > 0 and ('Removed %d AI review comment(s)'):format(removed) or 'No AI review comments in this file')
+  vim.notify(removed > 0 and ('Removed ' .. counted(removed)) or 'No review comments in this file')
 end
 
 -- Repaint everything after a wipe: the comments went from the store, and the marks
@@ -186,16 +195,16 @@ end
 function M.clear_all()
   local total = #store.comments()
   if total == 0 then
-    vim.notify 'No AI review comments here'
+    vim.notify 'No review comments here'
     return
   end
 
-  if vim.fn.confirm(('Remove all %d AI review comment(s)?'):format(total), '&Yes\n&No', 2) ~= 1 then return end
+  if vim.fn.confirm(('Remove all %s?'):format(counted(total)), '&Yes\n&No', 2) ~= 1 then return end
 
   local removed = store.clear(nil)
   repaint()
 
-  vim.notify(('Removed %d AI review comment(s)'):format(removed))
+  vim.notify('Removed ' .. counted(removed))
 end
 
 -- Comments made on another branch are parked in the store and shown nowhere, so
@@ -204,25 +213,74 @@ end
 function M.clear_everywhere()
   local total = store.total()
   if total == 0 then
-    vim.notify 'No AI review comments anywhere'
+    vim.notify 'No review comments anywhere'
     return
   end
 
-  local prompt = ('Remove all %d AI review comment(s), on this branch and on every other?'):format(total)
+  local prompt = ('Remove all %s, on this branch and on every other?'):format(counted(total))
   if vim.fn.confirm(prompt, '&Yes\n&No', 2) ~= 1 then return end
 
   local removed = store.clear_everywhere()
   repaint()
 
-  vim.notify(('Removed %d AI review comment(s)'):format(removed))
+  vim.notify('Removed ' .. counted(removed))
 end
 
 -- One cell of gutter for the line being drawn: the bar of the block it belongs to,
--- or blank. Meant to be called from 'statuscolumn', which is the only way to put
--- something between the number column and the code. Wiring it up is the config's
--- call, not this module's: 'statuscolumn' is a global option, and a plugin has no
--- business rewriting the user's whole gutter.
+-- or nothing. Meant to be called from 'statuscolumn', which is the only way to put
+-- something between the number column and the code.
 M.gutter = marks.gutter
+
+local GUTTER = [[%C%s%l%=%{%v:lua.require'ai-review'.gutter()%}]]
+
+local function claim_gutter()
+  if vim.o.statuscolumn ~= '' then return false end
+
+  vim.o.statuscolumn = GUTTER
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    vim.wo[win].statuscolumn = GUTTER
+  end
+
+  return true
+end
+
+local function gutter_drawn()
+  if vim.o.statuscolumn:find('ai-review', 1, true) then return true end
+
+  return claim_gutter()
+end
+
+------------------------------------------------------------------- getting around
+
+local function jump(back)
+  local buf = vim.api.nvim_get_current_buf()
+
+  refresh()
+
+  local spans = marks.spans(buf)
+  if #spans == 0 then
+    vim.notify 'No review comments in this file'
+    return
+  end
+
+  local row = vim.api.nvim_win_get_cursor(0)[1]
+  local target
+
+  for _, entry in ipairs(spans) do
+    if back and entry.first < row then
+      target = entry.first
+    elseif not back and entry.first > row then
+      target = target or entry.first
+    end
+  end
+
+  target = target or (back and spans[#spans].first or spans[1].first)
+
+  vim.api.nvim_win_set_cursor(0, { target, 0 })
+end
+
+function M.next() jump(false) end
+function M.prev() jump(true) end
 
 -------------------------------------------------------------------------- setup
 
@@ -232,11 +290,25 @@ M.gutter = marks.gutter
 -- group, set with `default = true` and so already the user's to change with :hi.
 function M.setup(opts)
   marks.configure(opts or {})
+
+  bar = gutter_drawn()
   highlights()
 
   local group = vim.api.nvim_create_augroup('ai-review', { clear = true })
 
   vim.api.nvim_create_autocmd('ColorScheme', { group = group, callback = highlights })
+
+  vim.api.nvim_create_autocmd('VimEnter', {
+    group = group,
+    once = true,
+    callback = function()
+      local ours = gutter_drawn()
+      if ours == bar then return end
+
+      bar = ours
+      highlights()
+    end,
+  })
 
   -- Reading the branch is a small file read and checking the store is a stat, so
   -- doing it on entry is cheaper than any machinery that would avoid it.

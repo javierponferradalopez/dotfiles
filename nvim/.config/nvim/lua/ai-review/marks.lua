@@ -5,9 +5,7 @@
 -- first line and carries the icon. One ranged extmark with an icon would stamp that
 -- icon on every line of the range, which says a comment exists but nothing about
 -- how far it reaches. Both track the text natively, so nothing is repainted as you
--- edit -- and the bar marking the extent is read off the range mark on demand by
--- 'statuscolumn' (M.gutter), which is the only way to draw between the number
--- column and the code.
+-- edit.
 --
 -- The block you read when the cursor is inside it is a throwaway decoration in its
 -- own namespace: it holds no state, so it can be wiped and redrawn at will. The one
@@ -71,6 +69,10 @@ local ICON_PRIORITY = 12
 local COMMENT_BAR = '▎'
 local CODE_BAR = '▏'
 local NO_BAR = ' '
+local COMMENT_BAR_HL = 'AIReviewBar'
+local CODE_BAR_HL = 'AIReviewBarCode'
+
+local RANGE_HL = 'AIReviewRange'
 
 -- How far to look for an anchor that moved while the buffer was closed. Wide
 -- enough for ordinary edits above it, narrow enough that a match found this far
@@ -136,11 +138,10 @@ local function place(buf, comment, lnum)
   local total = vim.api.nvim_buf_line_count(buf)
   local last = math.max(math.min(comment.end_line or lnum, total), lnum)
 
-  -- The range mark draws nothing. It is the one that tracks where the block starts
-  -- and ends, and the gutter reads the bar off it.
   local range = vim.api.nvim_buf_set_extmark(buf, NS, lnum - 1, 0, {
     end_row = last - 1,
     end_right_gravity = true,
+    number_hl_group = RANGE_HL,
   })
 
   owner[buf] = owner[buf] or {}
@@ -222,6 +223,12 @@ end
 
 ---------------------------------------------------------------------- public API
 
+local function orphaned_message(count)
+  if count == 1 then return 'A review comment lost the code it was on -- :AIReviewList still has it' end
+
+  return ('%d review comments lost the code they were on -- :AIReviewList still has them'):format(count)
+end
+
 -- Re-anchor every comment for this buffer and place its marks. Called on read and
 -- on entry, but it only redoes the work when the store has actually moved on.
 function M.attach(buf, force)
@@ -243,6 +250,7 @@ function M.attach(buf, force)
   if open and open.buf == buf then open = nil end
 
   local changed = false
+  local lost = 0
 
   for _, comment in ipairs(store.for_path(rel)) do
     local lnum = relocate(buf, comment)
@@ -255,10 +263,12 @@ function M.attach(buf, force)
     elseif not comment.orphaned then
       comment.orphaned = true
       changed = true
+      lost = lost + 1
     end
   end
 
   if changed then store.touch(true) end
+  if lost > 0 then vim.notify(orphaned_message(lost), vim.log.levels.WARN) end
   synced[buf] = store.generation()
 end
 
@@ -325,6 +335,23 @@ function M.at_cursor()
   if not best then return nil end
 
   return store.get(best.id), best.first
+end
+
+function M.spans(buf)
+  buf = resolve(buf)
+  local found = {}
+
+  for id, pair in pairs(placed[buf] or {}) do
+    local first, last = span(buf, pair)
+    if first then table.insert(found, { first = first, last = last, id = id }) end
+  end
+
+  table.sort(found, function(a, b)
+    if a.first ~= b.first then return a.first < b.first end
+    return a.id < b.id
+  end)
+
+  return found
 end
 
 -- Swap the glyph on an anchor, in place. Opening the dot is an edit to the one
@@ -409,9 +436,8 @@ local function block_at(buf, lnum)
   end
 end
 
--- One cell of gutter, to be placed by 'statuscolumn' right before the code. The
--- config decides whether to use it at all; this module only answers what belongs
--- in that cell for the line being drawn.
+-- One cell of gutter, to be placed by 'statuscolumn' right before the code. This
+-- module only answers what belongs in that cell for the line being drawn.
 --
 -- `virtual` marks the rows that hold the comment text itself, which get the full
 -- weight; the code the comment points at gets the light one. Nothing is drawn
@@ -419,9 +445,12 @@ end
 -- what made it read as a banner.
 function M.bar(buf, lnum, virtual)
   buf = resolve(buf)
+  if not next(placed[buf] or {}) then return '' end
   if not block_at(buf, lnum) then return NO_BAR end
 
-  return '%#' .. SIGN_HL .. '#' .. (virtual and COMMENT_BAR or CODE_BAR) .. '%*'
+  if virtual then return '%#' .. COMMENT_BAR_HL .. '#' .. COMMENT_BAR .. '%*' end
+
+  return '%#' .. CODE_BAR_HL .. '#' .. CODE_BAR .. '%*'
 end
 
 -- The 'statuscolumn' entry point: same answer as M.bar, with everything read off
