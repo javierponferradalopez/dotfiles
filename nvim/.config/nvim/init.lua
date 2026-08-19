@@ -53,21 +53,6 @@ do
   -- Keep signcolumn on by default
   vim.o.signcolumn = 'yes'
 
-  -- The default gutter (`%C%s%l`: fold, signs, number) plus one cell of our own
-  -- after the number, right up against the code. Signs stay where signs belong —
-  -- out on the left, lined up with git and diagnostics — and the extra cell is
-  -- where ai-review draws the bar marking which lines a comment is about. A sign
-  -- could not do that job: it would sit on the far side of the number and would
-  -- fight gitsigns for the single sign cell.
-  --
-  -- The `%=` is load-bearing: on a wrapped row, and on the virtual rows that hold
-  -- an ai-review comment, `%l` draws no number and the padding lands *after* our
-  -- cell, leaving the bar adrift several columns left of the one on the code.
-  -- Right-aligning it pins the cell to the edge of the margin on every kind of row.
-  --
-  -- 'statuscolumn' is global, so wiring it belongs here rather than in the plugin.
-  vim.o.statuscolumn = [[%C%s%l%=%{%v:lua.require'ai-review'.gutter()%}]]
-
   -- Decrease update time
   vim.o.updatetime = 250
 
