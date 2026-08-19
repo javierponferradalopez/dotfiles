@@ -1,29 +1,8 @@
--- On-disk home for the review comments: where they live, how they are read and
--- written, and which of them belong to the branch you are on right now.
---
---   comments.json         the comments of the *active* branch. Shared: you write
---                         them here, and the agent deletes the ones it has done.
---   branches/<name>.json  the same, for the branches you are not on. Neovim only.
---   state.json            which branch comments.json currently belongs to.
---
--- The agent closing a comment IS deleting it, so there is nothing for it to say
--- back and no second file to say it in. What that costs is the one-writer rule:
--- this module has to assume the file changed under it, which it does by comparing
--- what is on disk with what it last left there and reloading when they differ.
--- Hence one comment per line in the encoder -- closing one is a one-line edit,
--- not a rewrite -- and hence the reload before anything is written.
---
--- Nothing outside this module knows that any of it is JSON on a disk.
-
 local M = {}
 
 local DIR = '.ai-review'
 local VERSION = 1
 
--- What the agent is told when it opens the projection. It travels with the data
--- instead of living in CLAUDE.md for two reasons: the contract cannot drift from
--- the code that produces it, and the global instructions stay two lines long
--- however much this format grows.
 local PROTOCOL = {
   'Review comments written by the human, addressed to you (the agent).',
   'Each one is about the code at path:line (through end_line when present).',
@@ -42,15 +21,9 @@ local PROTOCOL = {
   'not guess -- ask.',
 }
 
--- Everything below is memoised for the session: root and gitdir do not move, and
--- the projection is the in-memory truth that gets flushed on every change.
 local root, gitdir, branch, projection
--- What comments.json looked like when we last wrote it. Anything else on disk is
--- the agent's doing, and the agent's copy wins.
 local stamp
 local generation = 0
-
----------------------------------------------------------------------- plumbing
 
 local function read_file(path)
   local fd = vim.uv.fs_open(path, 'r', 438)
@@ -63,9 +36,6 @@ local function read_file(path)
   return body
 end
 
--- Write via a temporary file and a rename, never by truncating in place: a crash
--- halfway through must not leave a half-parsed JSON behind, because since the
--- comments left the code this file is the only record of them.
 local function write_file(path, body)
   local tmp = path .. '.tmp'
   local fd = vim.uv.fs_open(tmp, 'w', 420)
@@ -90,26 +60,13 @@ local function decode(body)
   return nil
 end
 
--- The store as the agent may have left it. Deleting the last comment of the array
--- leaves the comma before it dangling, which is invalid JSON and is also not a
--- corrupt store -- it is a one-character slip in an edit we asked for. Repaired on
--- the way in, and gone for good on the next write, which reformats anyway. Only
--- ever tried on a body that already failed to parse, so it cannot make a readable
--- store worse.
 local function decode_store(body) return decode(body) or decode(body and (body:gsub(',(%s*[%]}])', '%1'))) end
 
-------------------------------------------------------------------------- paths
-
--- The project root is the directory holding `.git` -- a directory in a normal
--- clone, a file pointing elsewhere in a worktree. Outside git we fall back to
--- the cwd so the tool still works, just without branch awareness.
 local function resolve_root()
   local cwd = vim.uv.cwd()
   return vim.fs.root(cwd, '.git') or cwd
 end
 
--- Where git keeps HEAD for this checkout. In a worktree `.git` is a file holding
--- `gitdir: <path>`, which may be relative to the root.
 local function resolve_gitdir(project)
   local dot = vim.fs.joinpath(project, '.git')
   local stat = vim.uv.fs_stat(dot)
@@ -129,18 +86,11 @@ local function store_dir() return vim.fs.joinpath(root, DIR) end
 local function projection_path() return vim.fs.joinpath(store_dir(), 'comments.json') end
 local function state_path() return vim.fs.joinpath(store_dir(), 'state.json') end
 
--- Branch names carry slashes and other things a filename should not, so escape
--- anything that is not plainly safe. Percent-escaping keeps it reversible, which
--- matters only for eyeballing the directory: the branch is also stored inside
--- each file, and that is what the code reads back.
 local function archive_path(name)
   local slug = name:gsub('[^%w%-_.]', function(c) return ('%%%02X'):format(c:byte()) end)
   return vim.fs.joinpath(store_dir(), 'branches', slug .. '.json')
 end
 
--- Keep the store out of git without touching a shared .gitignore: these comments
--- are personal and throwaway, and adding noise to a file the whole team reads is
--- not this tool's business.
 local function ensure_excluded()
   if not gitdir then return end
 
@@ -154,13 +104,6 @@ local function ensure_excluded()
   write_file(path, body .. separator .. entry .. '\n')
 end
 
--------------------------------------------------------------------- projection
-
--- Hand-rolled layout rather than a bare `vim.json.encode` of the whole table:
--- this file is read by a human and by an agent, so the protocol has to be
--- legible and each comment has to sit on its own line instead of in one endless
--- one. The values still go through vim.json.encode, so the escaping is not ours
--- to get wrong.
 local function encode(p)
   local out = { '{' }
 
@@ -190,8 +133,6 @@ end
 
 local function empty(name) return { version = VERSION, branch = name, protocol = PROTOCOL, comments = {} } end
 
--- Read a projection, keeping a corrupt one rather than overwriting it: it holds
--- comments that exist nowhere else, so the user gets the chance to salvage them.
 local function read_projection(path, name)
   local body = read_file(path)
   if not body then return empty(name) end
@@ -204,30 +145,16 @@ local function read_projection(path, name)
     return empty(name)
   end
 
-  -- The version and the protocol always come from the code, never from the file:
-  -- the contract the agent reads is whatever this plugin currently understands.
   decoded.version = VERSION
   decoded.protocol = PROTOCOL
-  -- Only the caller that knows which branch it is asking for gets to set it. The
-  -- ones that read an archive blind (applying a reply, pruning) pass no name, and
-  -- must not erase the one the file already carries -- it is how a store is tied
-  -- back to its branch once the filename has been escaped.
   decoded.branch = name or decoded.branch
   decoded.comments = decoded.comments or {}
 
   return decoded
 end
 
--- The store comes into existence with your first comment, never merely because a
--- buffer was opened: the branch check runs on every BufEnter, so without this a
--- project you only visited would end up with a directory and an exclude entry it
--- never asked for. Once it does exist we keep it up to date even when it empties
--- out, since the active branch still matters.
 local function exists() return vim.uv.fs_stat(store_dir()) ~= nil end
 
--- Enough of the file to tell our own writing from someone else's. Size alone would
--- miss an edit that happens to keep the length; the nanosecond mtime alone would
--- miss nothing in practice, but the two together cost one stat either way.
 local function fingerprint()
   local stat = vim.uv.fs_stat(projection_path())
   if not stat then return nil end
@@ -245,12 +172,6 @@ local function save()
   write_file(state_path(), vim.json.encode { branch = branch } .. '\n')
 end
 
------------------------------------------------------------------------- branch
-
--- Read the branch straight out of `.git/HEAD` instead of forking git: this runs
--- on every BufEnter. `nil` means a detached HEAD -- a rebase, a bisect, a
--- checked-out commit -- and callers deliberately stay on the current store in
--- that case, so a rebase does not make your comments blink out and back.
 local function read_branch()
   if not gitdir then return nil end
 
@@ -260,9 +181,6 @@ local function read_branch()
   return ref and vim.trim(ref) or nil
 end
 
--- Park the branch we are leaving and bring in the one we arrived at, keeping one
--- invariant: a branch's comments live in comments.json while it is active and in
--- branches/<name>.json while it is not. Never in both.
 local function switch_to(target)
   if branch then
     local parked = archive_path(branch)
@@ -279,21 +197,12 @@ local function switch_to(target)
   save()
 end
 
--- How many comments the last reload found missing, waiting for someone to be told.
--- It is kept here rather than returned because the reload happens deep inside a
--- load check that most callers neither ask for nor care about, and the one caller
--- that does care asks later.
 local vanished = 0
 
--- Take the file back as the truth, because someone else wrote it. Nothing is
--- merged: an edit we did not make wins whole, and reconciling two versions of the
--- list would be a lot of machinery to decide something the agent already decided.
 local function reload()
   local before = #projection.comments
   local decoded = decode_store(read_file(projection_path()))
 
-  -- Unreadable is not a reason to throw away the comments we are holding: ours are
-  -- as good as whatever is down there, and the next write puts the file right.
   if not decoded then
     vim.notify('ai-review: the store changed and cannot be read, keeping the comments in memory', vim.log.levels.ERROR)
     stamp = fingerprint()
@@ -311,11 +220,6 @@ local function reload()
   vanished = vanished + math.max(before - #projection.comments, 0)
 end
 
--- Looking for the branch and for someone else's edit both hit the disk, and the
--- gutter asks this module for a comment on every line it draws. So the checks are
--- rate-limited: a tenth of a second is far below what you could notice and far
--- above a redraw. `force` is for the moments we know something may have changed --
--- entering a buffer, coming back to the window -- where waiting is not on.
 local CHECK_EVERY = 100 * 1e6
 local checked = 0
 
@@ -325,8 +229,6 @@ local function ensure_loaded(force)
     gitdir = resolve_gitdir(root)
 
     local state = decode(read_file(state_path())) or {}
-    -- Whose comments comments.json currently holds -- not necessarily the branch
-    -- we are on, since the last session may have ended somewhere else.
     branch = state.branch
     projection = read_projection(projection_path(), branch)
     stamp = fingerprint()
@@ -342,8 +244,6 @@ local function ensure_loaded(force)
   if current and current ~= branch then switch_to(current) end
 end
 
------------------------------------------------------------------------ branches
-
 local function archives()
   local dir = vim.fs.joinpath(store_dir(), 'branches')
   local found = {}
@@ -356,8 +256,6 @@ local function archives()
   return found
 end
 
---------------------------------------------------------------------- public API
-
 function M.root()
   ensure_loaded()
   return root
@@ -368,15 +266,11 @@ function M.branch()
   return branch
 end
 
--- Bumped on every change, so the buffer side can tell whether the marks it
--- placed are still current without diffing anything.
 function M.generation()
   ensure_loaded()
   return generation
 end
 
--- Path as stored: relative to the project root, so the store survives being
--- cloned somewhere else. `nil` for anything outside the project.
 function M.relpath(abs)
   if not abs or abs == '' then return nil end
   ensure_loaded()
@@ -442,15 +336,12 @@ function M.remove(id)
   return false
 end
 
--- For everything that edits a comment in place (its text, or the line an extmark
--- says it drifted to): the caller mutated the table, we just persist it.
 function M.touch(changed)
   ensure_loaded()
   if changed then generation = generation + 1 end
   save()
 end
 
--- Drop the comments of one file, or of the whole branch. Returns how many went.
 function M.clear(rel)
   ensure_loaded()
 
@@ -473,9 +364,6 @@ function M.clear(rel)
   return removed
 end
 
--- Everything in the store, the comments parked on the branches you are not on
--- included. There is one caller and it is a prompt: a wipe this wide should be
--- able to say how much is about to go.
 function M.total()
   ensure_loaded()
 
@@ -488,9 +376,6 @@ function M.total()
   return count
 end
 
--- The wipe that reaches the other branches, which nothing else here does: their
--- comments are parked in files you never open, so without this the only way to be
--- rid of them is to go and stand on each branch in turn. Returns how many went.
 function M.clear_everywhere()
   local removed = M.clear(nil)
 
@@ -502,9 +387,6 @@ function M.clear_everywhere()
   return removed
 end
 
--- Catch up with the file, now rather than within the next tenth of a second, and
--- answer the one question that a deletion you did not make leaves behind: how many
--- comments the agent took while you were looking elsewhere.
 function M.refresh()
   ensure_loaded(true)
 
