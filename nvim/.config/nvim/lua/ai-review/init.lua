@@ -33,8 +33,6 @@ local ui = require 'ai-review.ui'
 
 local M = {}
 
-local bar = false
-
 local function highlights()
   -- The focused sign follows the resting one by default: focus is carried by the
   -- shape, which reads without colour and reads to everyone. Linking it separately
@@ -52,8 +50,6 @@ local function highlights()
   for group, target in pairs(groups) do
     vim.api.nvim_set_hl(0, group, { link = target, default = true })
   end
-
-  vim.api.nvim_set_hl(0, 'AIReviewRange', bar and { default = true } or { link = 'AIReviewSign', default = true })
 end
 
 local function counted(n) return n == 1 and '1 review comment' or ('%d review comments'):format(n) end
@@ -234,20 +230,12 @@ M.gutter = marks.gutter
 local GUTTER = [[%C%s%l%=%{%v:lua.require'ai-review'.gutter()%}]]
 
 local function claim_gutter()
-  if vim.o.statuscolumn ~= '' then return false end
+  if vim.o.statuscolumn ~= '' then return end
 
   vim.o.statuscolumn = GUTTER
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     vim.wo[win].statuscolumn = GUTTER
   end
-
-  return true
-end
-
-local function gutter_drawn()
-  if vim.o.statuscolumn:find('ai-review', 1, true) then return true end
-
-  return claim_gutter()
 end
 
 ------------------------------------------------------------------- getting around
@@ -291,24 +279,12 @@ function M.prev() jump(true) end
 function M.setup(opts)
   marks.configure(opts or {})
 
-  bar = gutter_drawn()
+  claim_gutter()
   highlights()
 
   local group = vim.api.nvim_create_augroup('ai-review', { clear = true })
 
   vim.api.nvim_create_autocmd('ColorScheme', { group = group, callback = highlights })
-
-  vim.api.nvim_create_autocmd('VimEnter', {
-    group = group,
-    once = true,
-    callback = function()
-      local ours = gutter_drawn()
-      if ours == bar then return end
-
-      bar = ours
-      highlights()
-    end,
-  })
 
   -- Reading the branch is a small file read and checking the store is a stat, so
   -- doing it on entry is cheaper than any machinery that would avoid it.

@@ -72,8 +72,6 @@ local NO_BAR = ' '
 local COMMENT_BAR_HL = 'AIReviewBar'
 local CODE_BAR_HL = 'AIReviewBarCode'
 
-local RANGE_HL = 'AIReviewRange'
-
 -- How far to look for an anchor that moved while the buffer was closed. Wide
 -- enough for ordinary edits above it, narrow enough that a match found this far
 -- away is still plausibly the same code.
@@ -141,7 +139,6 @@ local function place(buf, comment, lnum)
   local range = vim.api.nvim_buf_set_extmark(buf, NS, lnum - 1, 0, {
     end_row = last - 1,
     end_right_gravity = true,
-    number_hl_group = RANGE_HL,
   })
 
   owner[buf] = owner[buf] or {}
