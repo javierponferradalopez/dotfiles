@@ -414,14 +414,6 @@ function M.get(id)
   end
 end
 
--- One comment per anchor line, so `<leader>aa` never has to ask which one you
--- meant and rendering never has to stack them.
-function M.at(rel, line)
-  for _, comment in ipairs(M.comments()) do
-    if comment.path == rel and comment.line == line then return comment end
-  end
-end
-
 function M.add(entry)
   ensure_loaded()
 

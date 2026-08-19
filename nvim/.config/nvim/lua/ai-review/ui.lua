@@ -1,4 +1,4 @@
--- What you look at: the window you write a comment in, and the picker.
+-- What you look at: the window you write a comment in, and the list of them all.
 --
 -- Comments are prose, and the built-in cmdline prompt garbles anything longer
 -- than the screen -- it scrolls sideways and leaves the redraw artefacts behind --
@@ -26,7 +26,13 @@ function M.compose(opts)
   if opts.text and opts.text ~= '' then vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(opts.text, '\n')) end
 
   local width = math.min(80, vim.o.columns - 4)
-  local height = math.min(10, math.max(5, math.floor(vim.o.lines * 0.25)))
+
+  local rows = 1
+  for _, line in ipairs(vim.split(opts.text or '', '\n')) do
+    rows = rows + math.max(1, math.ceil(vim.fn.strdisplaywidth(line) / width))
+  end
+
+  local height = math.min(math.max(rows, 5), math.max(5, math.floor(vim.o.lines * 0.6)))
 
   -- <C-j> rather than the <S-CR> you would rather press: it is the one that is
   -- always there to advertise. See the keymaps below for why.
@@ -39,7 +45,7 @@ function M.compose(opts)
     row = math.floor((vim.o.lines - height) / 2) - 1,
     col = math.floor((vim.o.columns - width) / 2),
     style = 'minimal',
-    border = 'rounded',
+    border = vim.o.winborder ~= '' and vim.o.winborder or 'rounded',
     title = ' ' .. TITLE .. ' ',
     title_pos = 'center',
     footer = footer,
@@ -78,13 +84,15 @@ function M.compose(opts)
     opts.on_delete()
   end
 
+  local function written() return table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), ''):match '%S' ~= nil end
+
   -- The way out of a window you did not mean to open. Nothing written in it means
   -- nothing to lose, so <Esc> closes it rather than dropping you into normal mode
   -- in a window you have no use for. Once there is text, <Esc> is <Esc> again --
   -- fed back rather than a `stopinsert`, so the cursor lands where leaving insert
   -- mode leaves it -- or there would be no way to reach normal mode from here.
   local function escape()
-    if not table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), ''):match '%S' then
+    if not written() then
       close()
       return
     end
@@ -119,8 +127,19 @@ function M.compose(opts)
   vim.keymap.set('n', 'q', close, { buffer = buf, desc = 'Discard changes' })
   vim.keymap.set({ 'n', 'i' }, '<Esc>', escape, { buffer = buf, desc = 'Leave insert, or close an untouched window' })
 
-  -- Clicking or jumping away discards the draft instead of leaking the window.
-  vim.api.nvim_create_autocmd('BufLeave', { buffer = buf, once = true, callback = close })
+  vim.api.nvim_create_autocmd('BufLeave', {
+    buffer = buf,
+    once = true,
+    callback = function()
+      if closed then return end
+      if not written() then
+        close()
+        return
+      end
+
+      confirm()
+    end,
+  })
 
   if opts.text and opts.text ~= '' then
     vim.cmd 'normal! G$'
@@ -129,74 +148,36 @@ function M.compose(opts)
   end
 end
 
-------------------------------------------------------------------------- picker
+--------------------------------------------------------------------------- list
 
 local function one_line(text) return (text:gsub('%s+', ' ')) end
 
--- The preview is the comment itself, whole and wrapped. The quickfix previewer
--- that came for free here showed the code at the line instead, which is the one
--- thing the comment is not and the one thing you are about to see anyway: the
--- text is what the list has to flatten into a line, so this is where it goes back
--- to being readable.
-local function preview()
-  local previewers = require 'telescope.previewers'
-
-  return previewers.new_buffer_previewer {
-    title = 'Comment',
-    define_preview = function(self, entry)
-      vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, vim.split(entry.value.text, '\n'))
-      vim.wo[self.state.winid].wrap = true
-      vim.wo[self.state.winid].linebreak = true
-    end,
-  }
-end
-
--- Every comment you have here. Orphans come first and say so: their line is a
--- last known position, so where it takes you is a hint, not the truth.
 function M.list()
-  local ordered = {}
+  local items = {}
 
-  for _, comment in ipairs(store.comments()) do
-    if comment.orphaned then table.insert(ordered, comment) end
-  end
-  for _, comment in ipairs(store.comments()) do
-    if not comment.orphaned then table.insert(ordered, comment) end
+  local function add(orphaned)
+    for _, comment in ipairs(store.comments()) do
+      if not comment.orphaned == not orphaned then
+        table.insert(items, {
+          filename = store.abspath(comment.path),
+          lnum = comment.line,
+          col = 1,
+          text = orphaned and ('orphan · ' .. one_line(comment.text)) or one_line(comment.text),
+        })
+      end
+    end
   end
 
-  if #ordered == 0 then
-    vim.notify 'ai-review: nothing to show'
+  add(true)
+  add(false)
+
+  if #items == 0 then
+    vim.notify 'Nothing to show'
     return
   end
 
-  local pickers = require 'telescope.pickers'
-  local finders = require 'telescope.finders'
-  local conf = require('telescope.config').values
-
-  -- Entries are built here rather than run through make_entry: the picker is a
-  -- list of comments that happen to have a place, not of places, and `value` has
-  -- to carry the comment for the preview to have anything to show.
-  local function entry(comment)
-    local where = ('%s:%d'):format(comment.path, comment.line)
-    local label = one_line(comment.text)
-    if comment.orphaned then label = 'orphan · ' .. label end
-
-    return {
-      value = comment,
-      display = where .. '  ' .. label,
-      ordinal = where .. ' ' .. comment.text,
-      filename = store.abspath(comment.path),
-      lnum = comment.line,
-    }
-  end
-
-  pickers
-    .new({}, {
-      prompt_title = 'AI review comments',
-      finder = finders.new_table { results = ordered, entry_maker = entry },
-      previewer = preview(),
-      sorter = conf.generic_sorter {},
-    })
-    :find()
+  vim.fn.setqflist({}, ' ', { title = 'Review comments', items = items })
+  vim.cmd 'copen'
 end
 
 return M
