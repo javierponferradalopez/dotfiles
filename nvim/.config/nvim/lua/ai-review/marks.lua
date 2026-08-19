@@ -20,6 +20,8 @@ function M.configure(opts)
   configured.sign_focused = opts.sign_focused
 end
 
+function M.focused_sign() return focused_icon(), SIGN_FOCUSED_HL end
+
 local ICON_PRIORITY = 12
 
 local COMMENT_BAR = '▎'
@@ -227,7 +229,7 @@ function M.at_cursor()
 
   if not best then return nil end
 
-  return store.get(best.id), best.first
+  return store.get(best.id), best.first, best.first + best.size
 end
 
 function M.spans(buf)
