@@ -2,7 +2,8 @@
 -- `lua/ai-review/`, ready to be lifted out into a plugin of its own; this file is
 -- only the wiring the config needs.
 --
--- Telescope (SECTION 4 of init.lua) provides the picker and is not re-added.
+-- It depends on nothing: no plugin, and no option of yours that it does not ask
+-- for first.
 
 require('ai-review').setup()
 
