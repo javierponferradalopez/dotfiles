@@ -1,108 +1,181 @@
 local store = require 'ai-review.store'
+local marks = require 'ai-review.marks'
 
 local M = {}
 
 local TITLE = 'AI-REVIEW'
+local HEIGHT = 10
+local SIGN_PRIORITY = 20
+local NS = vim.api.nvim_create_namespace 'ai-review-compose'
+
+local draft
+
+local function bounds(available)
+  local room = math.max(3, math.floor(available / 2))
+  return math.min(HEIGHT, room), room
+end
+
+local function measure(buf, width)
+  local rows = 0
+
+  for _, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+    rows = rows + math.max(1, math.ceil((vim.fn.strdisplaywidth(line) + 1) / width))
+  end
+
+  return rows
+end
+
+local function fit(win, buf, host)
+  local available = vim.api.nvim_win_get_height(win) + (vim.api.nvim_win_is_valid(host) and vim.api.nvim_win_get_height(host) or 0)
+  local low, high = bounds(available)
+
+  vim.api.nvim_win_set_height(win, math.max(low, math.min(measure(buf, vim.api.nvim_win_get_width(win)), high)))
+end
+
+local function spotlight(buf, first, last)
+  if not first or not vim.api.nvim_buf_is_valid(buf) then return end
+
+  local total = vim.api.nvim_buf_line_count(buf)
+  if first > total then return end
+
+  local glyph, hl = marks.focused_sign()
+
+  vim.api.nvim_buf_set_extmark(buf, NS, first - 1, 0, {
+    sign_text = glyph,
+    sign_hl_group = hl,
+    priority = SIGN_PRIORITY,
+  })
+
+  for row = first - 1, math.min(last or first, total) - 1 do
+    vim.api.nvim_buf_set_extmark(buf, NS, row, 0, { line_hl_group = 'AIReviewDraft' })
+  end
+end
+
+local function unspotlight(buf)
+  if vim.api.nvim_buf_is_valid(buf) then vim.api.nvim_buf_clear_namespace(buf, NS, 0, -1) end
+end
+
+local function reference(buf, line, extent)
+  local name = vim.api.nvim_buf_get_name(buf)
+  name = store.relpath(name) or vim.fn.fnamemodify(name, ':t')
+
+  if not line then return name end
+  if extent and extent > line then return ('%s:%d-%d'):format(name, line, extent) end
+
+  return ('%s:%d'):format(name, line)
+end
+
+local function quoted(buf, line)
+  if not line or not vim.api.nvim_buf_is_valid(buf) then return nil end
+
+  local text = vim.trim(vim.api.nvim_buf_get_lines(buf, line - 1, line, false)[1] or '')
+  if text == '' then return nil end
+
+  return (text:gsub('%%', '%%%%'))
+end
+
+local function name_of(buf, about)
+  if pcall(vim.api.nvim_buf_set_name, buf, 'ai-review://' .. about) then return end
+
+  vim.api.nvim_buf_set_name(buf, ('ai-review://%s (%d)'):format(about, buf))
+end
+
+function M.drafting()
+  if draft and vim.api.nvim_win_is_valid(draft) then return draft end
+
+  draft = nil
+  return nil
+end
+
+function M.focus()
+  local win = M.drafting()
+  if not win then return false end
+
+  vim.api.nvim_set_current_win(win)
+  return true
+end
 
 function M.compose(opts)
   local prev_win = vim.api.nvim_get_current_win()
+  local target = vim.api.nvim_win_get_buf(prev_win)
+  local layout = vim.fn.winrestcmd()
+  local about = reference(target, opts.line, opts.extent)
+
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = 'wipe'
   vim.bo[buf].autoindent = false
+  vim.bo[buf].buftype = 'acwrite'
+  name_of(buf, about)
 
   if opts.text and opts.text ~= '' then vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(opts.text, '\n')) end
+  vim.bo[buf].modified = false
 
-  local width = math.min(80, vim.o.columns - 4)
-
-  local rows = 1
-  for _, line in ipairs(vim.split(opts.text or '', '\n')) do
-    rows = rows + math.max(1, math.ceil(vim.fn.strdisplaywidth(line) / width))
-  end
-
-  local height = math.min(math.max(rows, 5), math.max(5, math.floor(vim.o.lines * 0.6)))
-
-  local footer = opts.on_delete and ' <CR> save · <C-j> new line · <C-d> delete · <C-c>/q cancel ' or ' <CR> save · <C-j> new line · <C-c>/q cancel '
-
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = 'editor',
-    width = width,
-    height = height,
-    row = math.floor((vim.o.lines - height) / 2) - 1,
-    col = math.floor((vim.o.columns - width) / 2),
-    style = 'minimal',
-    border = vim.o.winborder ~= '' and vim.o.winborder or 'rounded',
-    title = ' ' .. TITLE .. ' ',
-    title_pos = 'center',
-    footer = footer,
-    footer_pos = 'center',
-  })
+  local low = bounds(vim.api.nvim_win_get_height(prev_win))
+  local win = vim.api.nvim_open_win(buf, true, { split = 'below', win = prev_win, height = low })
 
   vim.wo[win].wrap = true
   vim.wo[win].linebreak = true
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+  vim.wo[win].signcolumn = 'no'
+  vim.wo[win].statuscolumn = ''
+  vim.wo[win].foldcolumn = '0'
+  vim.wo[win].list = false
 
-  local closed = false
-  local function close()
-    if closed then return end
-    closed = true
+  local line = quoted(target, opts.line)
+  vim.wo[win].winbar = (' %s · %s %s'):format(TITLE, about, line and ('%<· ' .. line .. ' ') or '')
 
-    vim.cmd 'stopinsert'
+  spotlight(target, opts.line, opts.extent)
+  fit(win, buf, prev_win)
 
-    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
-    if vim.api.nvim_win_is_valid(prev_win) then vim.api.nvim_set_current_win(prev_win) end
-  end
+  draft = win
 
-  local function confirm()
-    local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n')
-    close()
-    opts.on_confirm(text)
-  end
+  local group = vim.api.nvim_create_augroup('ai-review-compose', { clear = true })
 
-  local function delete()
-    close()
-    opts.on_delete()
-  end
+  local finished = false
+  local function finish()
+    if finished then return end
+    finished = true
+    draft = nil
 
-  local function written() return table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), ''):match '%S' ~= nil end
+    vim.schedule(function()
+      unspotlight(target)
 
-  local function escape()
-    if not written() then
-      close()
-      return
-    end
-
-    if vim.fn.mode() == 'i' then vim.api.nvim_feedkeys(vim.keycode '<Esc>', 'n', false) end
-  end
-
-  vim.keymap.set({ 'n', 'i' }, '<CR>', confirm, { buffer = buf, desc = 'Save comment' })
-  vim.keymap.set({ 'n', 'i' }, '<C-s>', confirm, { buffer = buf, desc = 'Save comment' })
-  vim.keymap.set('i', '<C-j>', '<CR>', { buffer = buf, desc = 'New line' })
-  vim.keymap.set('i', '<S-CR>', '<CR>', { buffer = buf, desc = 'New line' })
-  vim.keymap.set('i', '<C-CR>', '<CR>', { buffer = buf, desc = 'New line' })
-  vim.keymap.set('i', '<M-CR>', '<CR>', { buffer = buf, desc = 'New line' })
-  vim.keymap.set('n', '<C-j>', 'o', { buffer = buf, desc = 'New line' })
-  vim.keymap.set('n', '<S-CR>', 'o', { buffer = buf, desc = 'New line' })
-  vim.keymap.set('n', '<C-CR>', 'o', { buffer = buf, desc = 'New line' })
-  vim.keymap.set('n', '<M-CR>', 'o', { buffer = buf, desc = 'New line' })
-
-  if opts.on_delete then vim.keymap.set({ 'n', 'i' }, '<C-d>', delete, { buffer = buf, desc = 'Delete comment' }) end
-
-  vim.keymap.set({ 'n', 'i' }, '<C-c>', close, { buffer = buf, desc = 'Discard changes' })
-  vim.keymap.set('n', 'q', close, { buffer = buf, desc = 'Discard changes' })
-  vim.keymap.set({ 'n', 'i' }, '<Esc>', escape, { buffer = buf, desc = 'Leave insert, or close an untouched window' })
-
-  vim.api.nvim_create_autocmd('BufLeave', {
-    buffer = buf,
-    once = true,
-    callback = function()
-      if closed then return end
-      if not written() then
-        close()
-        return
+      if not vim.api.nvim_win_is_valid(win) then
+        pcall(vim.cmd, layout)
+        if vim.api.nvim_win_is_valid(prev_win) then vim.api.nvim_set_current_win(prev_win) end
       end
 
-      confirm()
+      opts.on_close()
+    end)
+  end
+
+  vim.api.nvim_create_autocmd('BufWriteCmd', {
+    group = group,
+    buffer = buf,
+    callback = function()
+      opts.on_confirm(table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n'))
+      vim.bo[buf].modified = false
     end,
   })
+
+  vim.api.nvim_create_autocmd({ 'TextChanged', 'TextChangedI' }, {
+    group = group,
+    buffer = buf,
+    callback = function()
+      if not vim.api.nvim_win_is_valid(win) then return end
+      fit(win, buf, prev_win)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('WinLeave', {
+    group = group,
+    buffer = buf,
+    callback = function() vim.schedule(function() vim.cmd 'stopinsert' end) end,
+  })
+
+  vim.api.nvim_create_autocmd('WinClosed', { group = group, pattern = tostring(win), once = true, callback = finish })
+  vim.api.nvim_create_autocmd('BufWipeout', { group = group, buffer = buf, once = true, callback = finish })
 
   if opts.text and opts.text ~= '' then
     vim.cmd 'normal! G$'

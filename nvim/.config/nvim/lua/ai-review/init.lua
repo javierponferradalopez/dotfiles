@@ -11,6 +11,7 @@ local function highlights()
     AIReviewText = 'AIReviewSign',
     AIReviewBar = 'AIReviewSign',
     AIReviewBarCode = 'NonText',
+    AIReviewDraft = 'Visual',
   }
 
   for group, target in pairs(groups) do
@@ -33,6 +34,11 @@ local function refresh(buffers)
 end
 
 function M.comment(last)
+  if ui.focus() then
+    vim.notify 'Finish the review comment you are writing'
+    return
+  end
+
   local buf = vim.api.nvim_get_current_buf()
   local rel = store.relpath(vim.api.nvim_buf_get_name(buf))
   if not rel then
@@ -42,46 +48,53 @@ function M.comment(last)
 
   refresh()
 
-  local existing = marks.at_cursor()
+  local existing, first, extent = marks.at_cursor()
 
-  if existing then
-    ui.compose {
-      text = existing.text,
-      on_confirm = function(text)
-        text = vim.trim(text)
-        if text == '' then return end
-        existing.text = text
-        store.touch(true)
-        marks.attach(buf, true)
-        marks.render_focus()
-      end,
-      on_delete = function()
-        store.remove(existing.id)
-        marks.attach(buf, true)
-        marks.clear_focus(buf)
-      end,
-    }
-
-    return
-  end
-
-  local lnum = vim.api.nvim_win_get_cursor(0)[1]
+  local id = existing and existing.id
+  local lnum = existing and first or vim.api.nvim_win_get_cursor(0)[1]
+  local ending = existing and extent or (last and last > lnum and last or nil)
+  local snippet = vim.trim(vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or '')
 
   ui.compose {
+    line = lnum,
+    extent = ending and ending > lnum and ending or nil,
+    text = existing and existing.text,
+
     on_confirm = function(text)
       text = vim.trim(text)
-      if text == '' then return end
+      local comment = id and store.get(id)
 
-      store.add {
-        path = rel,
-        line = lnum,
-        end_line = last and last > lnum and last or nil,
-        snippet = vim.trim(vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or ''),
-        text = text,
-      }
+      if text == '' then
+        if comment then
+          store.remove(id)
+          id = nil
+        end
+      elseif comment then
+        comment.text = text
+        store.touch(true)
+      else
+        id = store.add({
+          path = rel,
+          line = lnum,
+          end_line = ending and ending > lnum and ending or nil,
+          snippet = snippet,
+          text = text,
+        }).id
+      end
+
+      if vim.api.nvim_buf_is_loaded(buf) then marks.attach(buf, true) end
+    end,
+
+    on_close = function()
+      if not vim.api.nvim_buf_is_loaded(buf) then return end
 
       marks.attach(buf, true)
-      marks.render_focus()
+
+      if id then
+        marks.render_focus()
+      else
+        marks.clear_focus(buf)
+      end
     end,
   }
 end
