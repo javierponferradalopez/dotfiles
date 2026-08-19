@@ -28,7 +28,9 @@ function M.compose(opts)
   local width = math.min(80, vim.o.columns - 4)
   local height = math.min(10, math.max(5, math.floor(vim.o.lines * 0.25)))
 
-  local footer = opts.on_delete and ' <CR> save · <S-CR> new line · <C-d> delete · <C-c>/q cancel ' or ' <CR> save · <S-CR> new line · <C-c>/q cancel '
+  -- <C-j> rather than the <S-CR> you would rather press: it is the one that is
+  -- always there to advertise. See the keymaps below for why.
+  local footer = opts.on_delete and ' <CR> save · <C-j> new line · <C-d> delete · <C-c>/q cancel ' or ' <CR> save · <C-j> new line · <C-c>/q cancel '
 
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -90,13 +92,23 @@ function M.compose(opts)
     if vim.fn.mode() == 'i' then vim.api.nvim_feedkeys(vim.keycode '<Esc>', 'n', false) end
   end
 
-  -- Chat-like bindings: <CR> sends the comment, shift (or ctrl/alt, for terminals
-  -- that do not tell <S-CR> apart) breaks the line.
+  -- Chat-like bindings: <CR> sends the comment, and breaking the line is the other
+  -- key. Most review comments are one line long, which is what makes <CR> the
+  -- right thing for it to do -- but it does mean the other key has to work.
+  --
+  -- <S-CR>, <C-CR> and <M-CR> are the ones worth pressing and none of them can be
+  -- relied on: a terminal has to be told to send something for shift-and-return,
+  -- and most are not, so all three arrive as a plain <CR> and save the comment you
+  -- were trying to write the second line of. <C-j> is the newline character
+  -- itself. Nothing has to be configured anywhere for it to arrive, which is why
+  -- it is the one the footer names, and why the others are a convenience on top.
   vim.keymap.set({ 'n', 'i' }, '<CR>', confirm, { buffer = buf, desc = 'Save comment' })
   vim.keymap.set({ 'n', 'i' }, '<C-s>', confirm, { buffer = buf, desc = 'Save comment' })
+  vim.keymap.set('i', '<C-j>', '<CR>', { buffer = buf, desc = 'New line' })
   vim.keymap.set('i', '<S-CR>', '<CR>', { buffer = buf, desc = 'New line' })
   vim.keymap.set('i', '<C-CR>', '<CR>', { buffer = buf, desc = 'New line' })
   vim.keymap.set('i', '<M-CR>', '<CR>', { buffer = buf, desc = 'New line' })
+  vim.keymap.set('n', '<C-j>', 'o', { buffer = buf, desc = 'New line' })
   vim.keymap.set('n', '<S-CR>', 'o', { buffer = buf, desc = 'New line' })
   vim.keymap.set('n', '<C-CR>', 'o', { buffer = buf, desc = 'New line' })
   vim.keymap.set('n', '<M-CR>', 'o', { buffer = buf, desc = 'New line' })
