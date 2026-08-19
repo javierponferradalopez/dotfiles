@@ -96,9 +96,7 @@ end
 -- the way in, and gone for good on the next write, which reformats anyway. Only
 -- ever tried on a body that already failed to parse, so it cannot make a readable
 -- store worse.
-local function decode_store(body)
-  return decode(body) or decode(body and (body:gsub(',(%s*[%]}])', '%1')))
-end
+local function decode_store(body) return decode(body) or decode(body and (body:gsub(',(%s*[%]}])', '%1'))) end
 
 ------------------------------------------------------------------------- paths
 
