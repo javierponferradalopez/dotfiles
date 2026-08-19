@@ -351,7 +351,7 @@ do
       { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
       { '<leader>t', group = '[T]oggle' },
       { '<leader>w', group = '[W]indow' },
-{ 'gr', group = 'LSP Actions', mode = { 'n' } },
+      { 'gr', group = 'LSP Actions', mode = { 'n' } },
     },
   }
 
@@ -498,15 +498,12 @@ do
     if #multi > 0 then
       actions.close(prompt_bufnr)
       local origin_buf = vim.api.nvim_get_current_buf()
-      local is_disposable = vim.api.nvim_buf_get_name(origin_buf) == ''
-        or vim.bo[origin_buf].filetype == 'ministarter'
+      local is_disposable = vim.api.nvim_buf_get_name(origin_buf) == '' or vim.bo[origin_buf].filetype == 'ministarter'
       for _, entry in ipairs(multi) do
         local path = entry.path or entry.filename
         if path then vim.cmd('tabedit ' .. vim.fn.fnameescape(path)) end
       end
-      if is_disposable then
-        pcall(vim.api.nvim_buf_delete, origin_buf, { force = false })
-      end
+      if is_disposable then pcall(vim.api.nvim_buf_delete, origin_buf, { force = false }) end
     else
       actions.select_tab(prompt_bufnr)
     end
@@ -535,16 +532,10 @@ do
   vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
   vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
   vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
-  vim.keymap.set('n', '<leader>sF', function()
-    builtin.find_files { hidden = true }
-  end, { desc = '[S]earch [F]iles (incl. hidden)' })
+  vim.keymap.set('n', '<leader>sF', function() builtin.find_files { hidden = true } end, { desc = '[S]earch [F]iles (incl. hidden)' })
   vim.keymap.set('n', '<leader>ss', builtin.lsp_document_symbols, { desc = '[S]earch [S]ymbols (document)' })
-  local function search_title()
-    return vim.g.focused_subproject and ('Search · ' .. vim.g.focused_subproject) or 'Search · (repo root)'
-  end
-  vim.keymap.set('n', '<leader>sw', function()
-    builtin.live_grep { prompt_title = search_title() }
-  end, { desc = '[S]earch by [G]rep' })
+  local function search_title() return vim.g.focused_subproject and ('Search · ' .. vim.g.focused_subproject) or 'Search · (repo root)' end
+  vim.keymap.set('n', '<leader>sw', function() builtin.live_grep { prompt_title = search_title() } end, { desc = '[S]earch by [G]rep' })
   vim.keymap.set('n', '<leader>sW', function()
     builtin.live_grep {
       prompt_title = search_title() .. ' (incl. hidden)',
@@ -604,12 +595,10 @@ do
         actions.select_default:replace(function()
           local prompt = action_state.get_current_picker(prompt_bufnr):_get_prompt()
           action_set.select(prompt_bufnr, 'default')
-          if prompt ~= '' then
-            vim.schedule(function()
-              vim.fn.setreg('/', prompt)
-              vim.cmd 'set hlsearch'
-            end)
-          end
+          if prompt ~= '' then vim.schedule(function()
+            vim.fn.setreg('/', prompt)
+            vim.cmd 'set hlsearch'
+          end) end
         end)
         return true
       end,
@@ -869,9 +858,7 @@ do
 
   -- Decide tooling based on the focused project's CWD only (set by SubProject.pick),
   -- so the monorepo-root biome.json doesn't leak into ESLint-only sub-projects.
-  local function focused_uses_biome()
-    return vim.uv.fs_stat(vim.fn.getcwd() .. '/biome.json') ~= nil
-  end
+  local function focused_uses_biome() return vim.uv.fs_stat(vim.fn.getcwd() .. '/biome.json') ~= nil end
 
   -- Lint autofix must be registered before conform so it runs first on BufWritePre.
   vim.api.nvim_create_autocmd('BufWritePre', {
@@ -890,23 +877,23 @@ do
     end,
   })
 
-  local function biome_or_prettierd()
-    return focused_uses_biome() and { 'biome' } or { 'prettierd' }
-  end
+  local function biome_or_prettierd() return focused_uses_biome() and { 'biome' } or { 'prettierd' } end
 
   require('conform').setup {
     notify_on_error = false,
     format_on_save = function(bufnr)
       local auto_fts = {
-        css = true, html = true,
-        javascript = true, javascriptreact = true,
-        json = true, markdown = true,
-        typescript = true, typescriptreact = true,
+        css = true,
+        html = true,
+        javascript = true,
+        javascriptreact = true,
+        json = true,
+        markdown = true,
+        typescript = true,
+        typescriptreact = true,
         yaml = true,
       }
-      if auto_fts[vim.bo[bufnr].filetype] then
-        return { timeout_ms = 1000 }
-      end
+      if auto_fts[vim.bo[bufnr].filetype] then return { timeout_ms = 1000 } end
     end,
     default_format_opts = {
       lsp_format = 'fallback',
