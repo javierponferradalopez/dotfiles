@@ -10,8 +10,11 @@
 -- column and the code.
 --
 -- The block you read when the cursor is inside it is a throwaway decoration in its
--- own namespace: it holds no state, so it can be wiped and redrawn without ever
--- touching the anchors.
+-- own namespace: it holds no state, so it can be wiped and redrawn at will. The one
+-- thing focus does reach into is the anchor's glyph, which opens from a filled dot
+-- to a hollow one while you are reading -- an edit to the sign the comment already
+-- has rather than a second sign over it, for the reason given where they are
+-- defined. It is the only writing to the anchors that does not come from attach().
 --
 -- A comment whose anchor cannot be found again is orphaned, and an orphan is
 -- deliberately not drawn anywhere: painting it at its last known line is exactly
@@ -27,8 +30,30 @@ local NS_FOCUS = vim.api.nvim_create_namespace 'ai-review-focus'
 -- The icon is an ordinary sign, so it sits wherever signs sit: out on the left of
 -- the number column, lined up with the git and diagnostic signs. Glyph then space,
 -- because a bare glyph butts against whatever is drawn next to it.
-local SIGN = '󰚩 '
+--
+-- A filled dot at rest, hollow while you are reading it. Geometric shapes rather
+-- than a Nerd Font glyph: an icon is the whole of what this draws in the margin,
+-- and a missing font turns the whole of it into a box. These two are in the fonts
+-- people already have.
+--
+-- The pair is deliberately one shape in two states, not two icons. Focus opens the
+-- dot up rather than colouring it, so the margin reads at a glance and reads the
+-- same to someone who cannot tell the two colours apart.
+local SIGN = '● '
+local SIGN_FOCUSED = '○ '
 local SIGN_HL = 'AIReviewSign'
+local SIGN_FOCUSED_HL = 'AIReviewSignFocused'
+
+local configured = {}
+
+local function icon() return configured.sign or SIGN end
+local function focused_icon() return configured.sign_focused or SIGN_FOCUSED end
+
+function M.configure(opts)
+  configured.sign = opts.sign
+  configured.sign_focused = opts.sign_focused
+end
+
 -- Above the default sign priority so a comment is not hidden by a git change on
 -- the same line. Signs on a line are ordered by priority and only the highest fits
 -- a one-column 'signcolumn'.
@@ -63,6 +88,12 @@ local MIN_SNIPPET = 4
 local placed = {}
 local synced = {}
 local owner = {}
+
+-- The anchor currently standing open, so it can be closed again when the cursor
+-- leaves it. One entry rather than a set, because only one comment is ever
+-- focused -- and it carries its buffer, since the cursor can leave by moving to
+-- another one entirely.
+local open
 
 -- Every API call takes 0 to mean "the current buffer", so callers pass it. As a
 -- table key, though, 0 is not the buffer it stands for, and state filed under it
@@ -118,7 +149,7 @@ local function place(buf, comment, lnum)
   return {
     range = range,
     anchor = vim.api.nvim_buf_set_extmark(buf, NS, lnum - 1, 0, {
-      sign_text = SIGN,
+      sign_text = icon(),
       sign_hl_group = SIGN_HL,
       priority = ICON_PRIORITY,
     }),
@@ -206,6 +237,10 @@ function M.attach(buf, force)
   vim.api.nvim_buf_clear_namespace(buf, NS, 0, -1)
   placed[buf] = {}
   owner[buf] = {}
+  -- The anchors are being thrown away and replaced, so anything standing open went
+  -- with them. Forget it rather than leave a closing edit aimed at an id that is no
+  -- longer there; the next render_focus opens whichever anchor replaced it.
+  if open and open.buf == buf then open = nil end
 
   local changed = false
 
@@ -255,33 +290,90 @@ function M.sync(buf)
   synced[buf] = store.generation()
 end
 
+-- Which of two blocks over the cursor is the one you mean. Innermost first: the
+-- one that starts later, and on a tie the shorter one -- comparing the start alone
+-- cannot tell 10-20 from 10-12, which is the pair the word "innermost" is about.
+-- The id settles what is left, because two comments really can share both ends
+-- (the store is also written by the agent, and re-anchoring can walk two of them
+-- onto the same line) and `pairs` would otherwise hand back a different one of
+-- them on every call. Ids begin with the time they were written, so the tie goes
+-- to the older comment and goes there for good.
+local function innermost(first, size, id, best)
+  if not best then return true end
+  if first ~= best.first then return first > best.first end
+  if size ~= best.size then return size < best.size end
+  return id < best.id
+end
+
 -- The comment whose block the cursor is inside -- not merely the line it is
 -- anchored to. A range comment is about all of its lines, so all of them show it.
--- Returns the comment and the first line of its block; the innermost block wins
--- when two of them overlap.
+-- Returns the comment and the first line of its block.
 function M.at_cursor()
   local buf = vim.api.nvim_get_current_buf()
   local row = vim.api.nvim_win_get_cursor(0)[1]
-  local found, found_at
+  local best
 
   for id, pair in pairs(placed[buf] or {}) do
     local first, last = span(buf, pair)
-    if first and row >= first and row <= last and (not found_at or first > found_at) then
-      found, found_at = store.get(id), first
+
+    if first and row >= first and row <= last then
+      local size = last - first
+      if innermost(first, size, id, best) then best = { first = first, size = size, id = id } end
     end
   end
 
-  return found, found_at
+  if not best then return nil end
+
+  return store.get(best.id), best.first
+end
+
+-- Swap the glyph on an anchor, in place. Opening the dot is an edit to the one
+-- sign the comment already has, not a second sign laid over it: signs do not stack
+-- but queue, so on a 'signcolumn' with room for two the hollow one would end up
+-- sitting next to the filled one rather than replacing it.
+--
+-- This is the one thing that writes to NS outside attach(), and it writes nothing
+-- the store cares about -- same id, same position, a different glyph.
+local function restamp(buf, id, glyph, hl)
+  if not vim.api.nvim_buf_is_valid(buf) then return end
+
+  local position = vim.api.nvim_buf_get_extmark_by_id(buf, NS, id, {})
+  if not position[1] then return end
+
+  vim.api.nvim_buf_set_extmark(buf, NS, position[1], 0, {
+    id = id,
+    sign_text = glyph,
+    sign_hl_group = hl,
+    priority = ICON_PRIORITY,
+  })
+end
+
+local function close_open()
+  if not open then return end
+
+  restamp(open.buf, open.id, icon(), SIGN_HL)
+  open = nil
 end
 
 -- Draw the focused comment, wiping whatever was drawn before. Cheap enough to run
--- on every cursor move: it is one namespace clear plus, at most, one extmark.
+-- on every cursor move: a namespace clear, and at most one extmark drawn, one
+-- anchor opened and one closed.
 function M.render_focus()
   local buf = vim.api.nvim_get_current_buf()
   vim.api.nvim_buf_clear_namespace(buf, NS_FOCUS, 0, -1)
 
   local comment, lnum = M.at_cursor()
+  local pair = comment and (placed[buf] or {})[comment.id]
+  local anchor = pair and pair.anchor
+
+  if open and (open.buf ~= buf or open.id ~= anchor) then close_open() end
+
   if not comment then return end
+
+  if anchor and not open then
+    restamp(buf, anchor, focused_icon(), SIGN_FOCUSED_HL)
+    open = { buf = buf, id = anchor }
+  end
 
   -- Above the first line of the block, wherever in it the cursor happens to be:
   -- the comment belongs to the code it opens, and it should not shuffle up and
@@ -294,6 +386,7 @@ end
 
 function M.clear_focus(buf)
   buf = resolve(buf)
+  close_open()
   if vim.api.nvim_buf_is_valid(buf) then vim.api.nvim_buf_clear_namespace(buf, NS_FOCUS, 0, -1) end
 end
 
@@ -359,6 +452,7 @@ function M.forget(buf)
   placed[buf] = nil
   synced[buf] = nil
   owner[buf] = nil
+  if open and open.buf == buf then open = nil end
 end
 
 return M

@@ -34,8 +34,13 @@ local ui = require 'ai-review.ui'
 local M = {}
 
 local function highlights()
+  -- The focused sign follows the resting one by default: focus is carried by the
+  -- shape, which reads without colour and reads to everyone. Linking it separately
+  -- is what lets `:hi AIReviewSignFocused` add colour on top for anyone who wants
+  -- the open dot to stand out further.
   local groups = {
     AIReviewSign = 'DiagnosticInfo',
+    AIReviewSignFocused = 'AIReviewSign',
     AIReviewText = 'Comment',
   }
 
@@ -52,6 +57,11 @@ local function refresh(buffers)
   for _, buf in ipairs(buffers or { vim.api.nvim_get_current_buf() }) do
     marks.attach(buf)
   end
+
+  -- Re-anchoring replaces the marks, and the sign under the cursor is a state of
+  -- one of them, so the open dot has to be put back by hand afterwards -- without
+  -- this, a refresh you did not ask for closes the comment you are reading.
+  marks.render_focus()
 
   -- Said out loud because it happened off-screen: comments you wrote are missing
   -- from the margin now, and a count is the whole of what is left to tell.
@@ -216,7 +226,12 @@ M.gutter = marks.gutter
 
 -------------------------------------------------------------------------- setup
 
-function M.setup()
+-- `opts.sign` and `opts.sign_focused` are the two things worth handing in: the
+-- margin icons are the whole of what this draws next to your code, and taste in
+-- them runs further than any default can. Everything else it draws is a highlight
+-- group, set with `default = true` and so already the user's to change with :hi.
+function M.setup(opts)
+  marks.configure(opts or {})
   highlights()
 
   local group = vim.api.nvim_create_augroup('ai-review', { clear = true })
@@ -227,10 +242,7 @@ function M.setup()
   -- doing it on entry is cheaper than any machinery that would avoid it.
   vim.api.nvim_create_autocmd({ 'BufReadPost', 'BufEnter' }, {
     group = group,
-    callback = function(ev)
-      refresh { ev.buf }
-      marks.render_focus()
-    end,
+    callback = function(ev) refresh { ev.buf } end,
   })
 
   -- Coming back from the agent's window: this is the moment its deletions land.
