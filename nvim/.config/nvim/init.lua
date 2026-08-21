@@ -533,6 +533,11 @@ do
   vim.keymap.set('n', '<leader>sc', builtin.commands, { desc = '[S]earch [C]ommands' })
   vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
+  -- Jump to the tests covering the current file. Not an LSP mapping (tests are
+  -- found by filename convention, not by any server), so it lives outside the
+  -- LspAttach block below and works in buffers with no language server.
+  vim.keymap.set('n', 'grt', require('custom.goto_tests').goto_tests, { desc = '[G]oto [T]ests' })
+
   -- Add Telescope-based LSP pickers when an LSP attaches to a buffer.
   -- If you later switch picker plugins, this is where to update these mappings.
   vim.api.nvim_create_autocmd('LspAttach', {
@@ -563,7 +568,8 @@ do
       -- Jump to the type of the word under your cursor.
       -- Useful when you're not sure what type a variable is and you want to see
       -- the definition of its *type*, not where it was *defined*.
-      vim.keymap.set('n', 'grt', builtin.lsp_type_definitions, { buffer = buf, desc = '[G]oto [T]ype Definition' })
+      -- On the shifted key, because `grt` goes to the tests instead (set above).
+      vim.keymap.set('n', 'grT', builtin.lsp_type_definitions, { buffer = buf, desc = '[G]oto [T]ype Definition' })
     end,
   })
 
