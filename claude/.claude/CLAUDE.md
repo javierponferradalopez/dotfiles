@@ -4,7 +4,7 @@ Do NOT use the AskUserQuestion tool.
 
 ## Review comments
 
-If `.ai-review/comments.json` exists at the project root, it holds my review
+If `.pickypen/comments.json` exists at the project root, it holds my review
 comments, written for you. "My comments", "the review comments" or "yours" when
 you ask me where they are means these -- there is no other place I leave them.
 

@@ -329,7 +329,7 @@ do
     icons = { mappings = vim.g.have_nerd_font },
     -- Document existing key chains
     spec = {
-      { '<leader>a', group = '[A]I review', mode = { 'n', 'v' } },
+      { '<leader>a', group = '[A]nnotate', mode = { 'n', 'v' } },
       { '<leader>b', group = '[B]uffer' },
       { '<leader>g', group = '[G]it' },
       { '<leader>r', group = '[R]un' },
@@ -408,6 +408,8 @@ do
     local filename = statusline.section_filename { trunc_width = 140 }
     local fileinfo = statusline.section_fileinfo { trunc_width = 120 }
     local location = statusline.section_location { trunc_width = 75 }
+    local loaded, pickypen = pcall(require, 'pickypen')
+    local annotations = loaded and pickypen.status() or ''
     -- Focused search scope, prefixed with an icon that tells a package root
     -- (project) apart from a plain directory (module). See custom/plugins/subproject.lua.
     local subproject = ''
@@ -422,6 +424,7 @@ do
     return statusline.combine_groups {
       { hl = mode_hl, strings = { mode } },
       { hl = 'MiniStatuslineDevinfo', strings = { git, diagnostics } },
+      { hl = 'PickyPenStatus', strings = { annotations } },
       '%<',
       { hl = 'MiniStatuslineFilename', strings = { filename } },
       '%=',
