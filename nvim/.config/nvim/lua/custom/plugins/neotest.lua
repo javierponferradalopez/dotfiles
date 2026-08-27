@@ -75,14 +75,43 @@ require('neotest').setup {
 
 local neotest = require 'neotest'
 
--- Open the summary panel and move focus into it, so the cursor lands on the
--- current file's tests (follow=true keeps it expanded on the active file).
+-- Reveal `file` in the summary panel: expanded down to it, every namespace
+-- inside it open, cursor parked on its line.
+--
+-- `summary.follow` does not get us here, and neither does a single `expand`.
+-- The follow listener only expands while the panel is already open; with it
+-- closed the call is deferred to a `NeotestSummaryOpen` autocmd that runs
+-- outside nio's async context, where the async `client:get_position` inside
+-- bails. And when we run and open in the same tick the tree may not hold the
+-- file yet, in which case `expand` silently does nothing -- permanently, since
+-- the expansion set is consumed by the next render and then cleared. So keep
+-- asking until the file shows up.
+local function reveal(win, file)
+  local pattern = '\\V' .. vim.fn.escape(vim.fn.fnamemodify(file, ':t'), '\\')
+  local attempts = 0
+  local function try()
+    attempts = attempts + 1
+    if not vim.api.nvim_win_is_valid(win) then return end
+    neotest.summary:expand(file, true)
+    local line = vim.api.nvim_win_call(win, function() return vim.fn.search(pattern, 'nw') end)
+    if line > 0 then
+      vim.api.nvim_win_set_cursor(win, { line, 0 })
+    elseif attempts < 30 then
+      vim.defer_fn(try, 100)
+    end
+  end
+  try()
+end
+
+-- Open the summary panel, move focus into it and land on the current file.
 local function focus_summary()
+  local file = vim.fn.expand '%:p'
   neotest.summary.open()
   vim.schedule(function()
     for _, win in ipairs(vim.api.nvim_list_wins()) do
       if vim.bo[vim.api.nvim_win_get_buf(win)].filetype == 'neotest-summary' then
         vim.api.nvim_set_current_win(win)
+        if file ~= '' then reveal(win, file) end
         return
       end
     end
