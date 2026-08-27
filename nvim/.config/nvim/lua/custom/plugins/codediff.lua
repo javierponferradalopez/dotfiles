@@ -21,6 +21,14 @@ require('codediff').setup {
     -- back for the odd file that reads better in two.
     layout = 'inline',
   },
+  explorer = {
+    -- Files nested under their directories, not a flat list of full paths: in a
+    -- monorepo the flat list is a wall of near-identical prefixes. Single-child
+    -- directory chains stay collapsed (flatten_dirs defaults on), so the tree
+    -- doesn't spend a row per level. `i` inside the panel toggles back to the
+    -- flat list.
+    view_mode = 'tree',
+  },
   keymaps = {
     view = {
       -- These three defaults claim keys we already own: <leader>b opens the
