@@ -20,6 +20,13 @@ require('codediff').setup {
     -- panes leave each version too cramped on a narrow screen; <leader>gl swaps
     -- back for the odd file that reads better in two.
     layout = 'inline',
+    -- Fold every unchanged region down to a few lines of context, so a one-line
+    -- change in a 900-line file opens at the change instead of at the top of an
+    -- untouched file you then have to scroll through. `<leader>gc` unfolds back
+    -- to the whole file when the surrounding code is what you need to judge the
+    -- change.
+    compact = true,
+    compact_context_lines = 6,
   },
   explorer = {
     -- Files nested under their directories, not a flat list of full paths: in a
@@ -31,7 +38,7 @@ require('codediff').setup {
   },
   keymaps = {
     view = {
-      -- These three defaults claim keys we already own: <leader>b opens the
+      -- These defaults claim keys we already own: <leader>b opens the
       -- buffer group (bound nowait here, so it would fire before <leader>bd
       -- could complete), <leader>e toggles neo-tree, and `t` is the till
       -- motion. Rehome them under the git prefix, which is free inside a
@@ -39,6 +46,9 @@ require('codediff').setup {
       toggle_explorer = '<leader>gp',
       focus_explorer = '<leader>ge',
       toggle_layout = '<leader>gl',
+      -- `gc` is the comment operator, and the modified pane is a real editable
+      -- buffer, so leave it alone.
+      toggle_compact = '<leader>gc',
     },
   },
 }
