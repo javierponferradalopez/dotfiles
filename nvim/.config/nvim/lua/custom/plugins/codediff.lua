@@ -35,6 +35,13 @@ require('codediff').setup {
     -- doesn't spend a row per level. `i` inside the panel toggles back to the
     -- flat list.
     view_mode = 'tree',
+    -- No 500ms `git status` poll. The pinned revision re-runs the poll before
+    -- the previous one has finished, and in the monorepo one status takes about
+    -- as long as the interval, so under load git processes pile up without
+    -- limit (upstream #525, fixed in #535 after our pin). Until the pin moves,
+    -- the panel refreshes only on open and on `R`: after a stage/unstage from
+    -- the panel, press `R` to move the file between groups.
+    auto_refresh = false,
   },
   keymaps = {
     view = {
