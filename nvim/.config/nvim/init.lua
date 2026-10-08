@@ -751,7 +751,6 @@ do
     -- clangd = {},
     -- gopls = {},
     -- pyright = {},
-    -- rust_analyzer = {},
     --
     -- Some languages (like typescript) have entire language plugins that can be useful:
     --    https://github.com/pmizio/typescript-tools.nvim
@@ -773,6 +772,21 @@ do
         local cwd = vim.fn.getcwd()
         if vim.uv.fs_stat(cwd .. '/biome.json') then on_dir(cwd) end
       end,
+    },
+
+    -- rust-analyzer runs `cargo check` on save by default; point it at clippy so the lint
+    -- diagnostics land in the buffer instead of only showing up in a terminal. It already
+    -- passes --all-targets/--all-features itself (check.allTargets + cargo.features), so
+    -- do NOT repeat them in extraArgs: cargo rejects the duplicated flag and the check
+    -- dies silently, leaving zero diagnostics.
+    rust_analyzer = {
+      ---@type lspconfig.settings.rust_analyzer
+      settings = {
+        ['rust-analyzer'] = {
+          check = { command = 'clippy' },
+          cargo = { features = 'all' },
+        },
+      },
     },
 
     stylua = {}, -- Used to format Lua code
@@ -811,6 +825,11 @@ do
       },
     },
   }
+
+  -- rust-analyzer's lspconfig `root_dir` shells out to `rustc` to locate the sysroot. Without a
+  -- toolchain that throws, and the error aborts the whole FileType autocmd chain -- which silently
+  -- takes treesitter highlighting down with it. Skip the server entirely when there is no Rust.
+  if vim.fn.executable 'rustc' == 0 then servers.rust_analyzer = nil end
 
   vim.pack.add {
     gh 'neovim/nvim-lspconfig',
@@ -883,6 +902,7 @@ do
         javascriptreact = true,
         json = true,
         markdown = true,
+        rust = true,
         typescript = true,
         typescriptreact = true,
         yaml = true,
@@ -902,6 +922,7 @@ do
       javascriptreact = biome_or_prettierd,
       json = biome_or_prettierd,
       markdown = { 'prettierd' },
+      rust = { 'rustfmt' },
       typescript = biome_or_prettierd,
       typescriptreact = biome_or_prettierd,
       yaml = { 'prettierd' },
@@ -1009,7 +1030,7 @@ do
   vim.pack.add { { src = gh 'nvim-treesitter/nvim-treesitter', version = 'main' } }
 
   -- Ensure basic parsers are installed
-  local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+  local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'rust', 'vim', 'vimdoc' }
   require('nvim-treesitter').install(parsers)
 
   ---@param buf integer
