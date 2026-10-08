@@ -128,6 +128,15 @@ navigate_pane_up = ""
 # type = "pane"
 # command = "lazygit"
 
+# Ctrl+b Shift+c opens a temporary floating shell above the current tab.
+[[keys.command]]
+key = "prefix+shift+c"
+type = "popup"
+command = "zsh"
+width = "90%"
+height = "85%"
+description = "floating shell popup"
+
 # Legacy indexed shortcut config is still parsed for compatibility.
 # Prefer switch_tab, switch_workspace, and focus_agent for new configs.
 # [keys.indexed]
@@ -204,6 +213,15 @@ navigate_pane_up = ""
 # Accent color for highlights, borders, and navigation UI.
 # Accepts: hex (#89b4fa), named colors (cyan, blue, magenta), or rgb(r,g,b)
 # accent = "cyan"
+
+# Agent rows in the sidebar: the state icon and the terminal title on line 1,
+# the workspace name (dim) on line 2.
+[ui.sidebar.agents]
+row_gap = 0
+rows = [
+  ["state_icon", {token = "terminal_title_stripped", dim = false, fg = "#a0a0a0"}],
+  [{token = "workspace", dim = true, bold = false}]
+]
 
 # Background notification popup delivery
 [ui.toast]
