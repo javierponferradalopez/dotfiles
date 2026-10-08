@@ -2,6 +2,8 @@
 
 Do NOT use the AskUserQuestion tool.
 
+Write in ASD-STE100 Simplified Technical English: code, documentation, commits.
+
 ## Review comments
 
 If `.pickypen/comments.json` exists at the project root, it holds my review
