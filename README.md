@@ -24,8 +24,8 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 ### 1. Install dependencies
 
 On macOS, run the bootstrap script. It installs the base tools (GNU Stow,
-`git`, `jq`, …) and Neovim's dependencies via Homebrew, skipping anything
-already present:
+`git`, `jq`, …), Neovim's dependencies and the Herdr plugins via Homebrew and
+Herdr, skipping anything already present:
 
 ```bash
 ./scripts/installation.sh
@@ -47,6 +47,19 @@ sockets…) end up written back inside this repository:
 ```bash
 stow -t $HOME -v --no-folding herdr
 ```
+
+### Herdr plugins
+
+`scripts/herdr-plugins.txt` holds the Herdr plugins, one GitHub
+`<owner>/<repo>` on each line. To add a plugin, add its line and run:
+
+```bash
+./scripts/herdr-plugins.sh
+```
+
+The script installs only the plugins that are not installed yet. Herdr starts
+a new plugin when its server starts, so restart the server or invoke the
+plugin's restart action after the install.
 
 ### Claude Code (copy, not link)
 

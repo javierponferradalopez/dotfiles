@@ -19,6 +19,7 @@ brew_install "zsh-vi-mode"
 brew_install "spaceship"
 brew_install "jq"
 brew_install "herdr"
+brew_install "go" # Herdr builds some plugins from source with Go
 echo "\n-------------------------"
 
 echo "\nNvim's dependencies -----"
@@ -29,6 +30,10 @@ brew_install "fd"
 brew_install "make"
 brew_install "fzf"
 brew_install "tree-sitter-cli"
+echo "\n-------------------------"
+
+echo "\nHerdr plugins -----------"
+"$(dirname "$0")/herdr-plugins.sh"
 echo "\n-------------------------"
 
 echo "\n${RED}Remember to install a Nerd Font (https://www.nerdfonts.com/font-downloads)${NC}"
