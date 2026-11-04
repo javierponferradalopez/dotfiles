@@ -5,7 +5,7 @@ set -euo pipefail
 list="$(dirname "$0")/herdr-plugins.txt"
 installed="$(herdr plugin list 2>/dev/null || true)"
 
-grep -vE '^\s*(#|$)' "$list" | while read -r repo; do
+{ grep -vE '^\s*(#|$)' "$list" || true; } | while read -r repo; do
   echo -e "\nInstalling Herdr plugin $repo"
   if grep -q "github:$repo@" <<<"$installed"; then
     echo "$repo is already installed"
