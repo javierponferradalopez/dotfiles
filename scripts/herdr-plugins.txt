@@ -1,2 +1,1 @@
 # Herdr plugins to install, one GitHub <owner>/<repo> on each line.
-kryptamine/herdr-auto-title
