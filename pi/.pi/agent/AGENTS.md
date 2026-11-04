@@ -5,8 +5,6 @@ Keep technical terms and code identifiers in their original form.
 
 ## Restrictions
 
-Explain in prose.
-
 Write in ASD-STE100 Simplified Technical English: code, documentation, commits.
 
 ## Sub-agents
