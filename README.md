@@ -70,14 +70,6 @@ The script installs only the plugins that are not installed yet. Herdr starts
 a new plugin when its server starts, so restart the server or invoke the
 plugin's restart action after the install.
 
-### Claude Code (copy, not link)
-
-`~/.claude/` is never symlinked.
-
-```bash
-cp -Rn claude/.claude/. "$HOME/.claude/"
-```
-
 ## Uninstall
 
 Remove the symlinks for any package with the `-D` flag:
