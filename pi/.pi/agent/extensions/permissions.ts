@@ -1,9 +1,9 @@
 /**
  * Permissions
  *
- * Pi does not ask before a tool call. This extension puts back the rules from
- * the Claude Code settings: it blocks access to secret files, it blocks
- * `rm -rf`, and it asks before `git push`.
+ * Pi does not ask before a tool call. This extension adds these rules: it
+ * blocks access to secret files, it blocks `rm -rf`, and it asks before
+ * `git push`.
  */
 
 import * as path from "node:path";
