@@ -13,6 +13,7 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 | `nvim`      | Neovim             | `~/.config/nvim/`                    |
 | `git`       | Git                | `~/.gitconfig`                       |
 | `herdr`     | Herdr multiplexer  | `~/.config/herdr/config.toml`        |
+| `pi`        | Pi coding agent    | `~/.pi/agent/` (single files)        |
 
 
 ## Installation
@@ -24,8 +25,8 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 ### 1. Install dependencies
 
 On macOS, run the bootstrap script. It installs the base tools (GNU Stow,
-`git`, `jq`, …), Neovim's dependencies and the Herdr plugins via Homebrew and
-Herdr, skipping anything already present:
+`git`, `jq`, …), Neovim's dependencies, the Herdr plugins and Pi, with its
+Herdr integration, skipping anything already present:
 
 ```bash
 ./scripts/installation.sh
@@ -46,6 +47,14 @@ sockets…) end up written back inside this repository:
 
 ```bash
 stow -t $HOME -v --no-folding herdr
+```
+
+`pi` must also be stowed with `--no-folding`. `~/.pi/agent` holds Pi's
+credentials (`auth.json`), sessions and install files, which must stay out of
+this repository:
+
+```bash
+stow -t $HOME -v --no-folding pi
 ```
 
 ### Herdr plugins
@@ -74,5 +83,5 @@ cp -Rn claude/.claude/. "$HOME/.claude/"
 Remove the symlinks for any package with the `-D` flag:
 
 ```bash
-stow -t $HOME -v -D zsh alacritty nvim git herdr
+stow -t $HOME -v -D zsh alacritty nvim git herdr pi
 ```
