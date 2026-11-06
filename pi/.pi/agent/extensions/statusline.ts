@@ -1,9 +1,9 @@
 /**
  * Status line
  *
- * Replaces the Pi footer with one line about the context window:
+ * Replaces the Pi footer with one line about the git branch and the context window:
  *
- *   model • thinking │ ✍️ context % (window) │ 🎯 tokens/120k %
+ *   ⎇ branch │ model • thinking │ ✍️ context % (window) │ 🎯 tokens/120k %
  *
  * Above the personal limit of 120k tokens the 🎯 changes to 🚨. The colors
  * change at 50%, 70% and 90%. The data comes from Pi, so it works with all
@@ -22,6 +22,7 @@ const ORANGE = "\x1b[38;2;255;176;85m";
 const YELLOW = "\x1b[38;2;230;200;0m";
 const RED = "\x1b[38;2;255;85;85m";
 const BLUE = "\x1b[38;2;0;153;255m";
+const MAGENTA = "\x1b[38;2;200;120;255m";
 const SEP = ` ${DIM}│${RESET} `;
 
 function colorPct(pct: number): string {
@@ -43,7 +44,8 @@ export default function(pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
 		if (!ctx.hasUI) return;
 
-		ctx.ui.setFooter((_tui, _theme, footerData) => ({
+		ctx.ui.setFooter((tui, _theme, footerData) => ({
+			dispose: footerData.onBranchChange(() => tui.requestRender()),
 			invalidate() { },
 			render(width: number): string[] {
 				const usage = ctx.getContextUsage();
@@ -53,7 +55,9 @@ export default function(pi: ExtensionAPI) {
 
 				const model = ctx.model?.id ?? "no-model";
 				const thinking = ctx.model?.reasoning ? ` ${DIM}• ${ctx.thinkingLevel}${RESET}` : "";
-				let line = `${BLUE}${model}${RESET}${thinking}${SEP}`;
+				const branch = footerData.getGitBranch();
+				let line = branch ? `${MAGENTA}⎇ ${branch}${RESET}${SEP}` : "";
+				line += `${BLUE}${model}${RESET}${thinking}${SEP}`;
 
 				if (known) {
 					const ctxPct = Math.floor((tokens * 100) / windowSize);
