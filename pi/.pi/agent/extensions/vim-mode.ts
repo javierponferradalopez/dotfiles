@@ -9,7 +9,9 @@
  * - Motions: h j k l, 0 ^ $, w e b
  * - Insert: i a I A o O
  * - Edit: x X D C S p u, dd dw db d0 d$, cc cw cb c0 c$
- * - Enter and control keys work in both modes.
+ * - Enter: insert mode adds a new line, normal mode submits. When the
+ *   autocomplete list shows, Enter selects the item in both modes.
+ * - Control keys work in both modes.
  */
 
 import { CustomEditor, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -94,6 +96,10 @@ class VimEditor extends CustomEditor {
 		}
 
 		if (this.mode === "insert") {
+			if (matchesKey(data, "enter") && !this.isShowingAutocomplete()) {
+				this.send([NEW_LINE]);
+				return;
+			}
 			super.handleInput(data);
 			return;
 		}
