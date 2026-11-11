@@ -15,7 +15,8 @@
   },
   "packages": [
     "npm:pi-subagents",
-    "npm:pi-web-access"
+    "npm:pi-web-access",
+    "npm:pi-vim"
   ],
   "extensionChangelogVersions": {
     "{\"source\":\"npm:pi-subagents\",\"scope\":\"user\"}": "0.84.0",
