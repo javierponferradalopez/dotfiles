@@ -137,23 +137,12 @@ width = "90%"
 height = "85%"
 description = "floating shell popup"
 
-# Ctrl+b d shows the working tree diff against HEAD.
+# Ctrl+b d opens lazygit in a temporary pane, on the files panel with the diff of the selected file.
 [[keys.command]]
 key = "prefix+d"
-type = "popup"
-command = "git -c color.ui=always diff HEAD | less -R"
-width = "90%"
-height = "85%"
-description = "diff popup"
-
-# Ctrl+b Shift+l opens lazygit.
-[[keys.command]]
-key = "prefix+shift+l"
-type = "popup"
-command = "lazygit"
-width = "95%"
-height = "90%"
-description = "lazygit popup"
+type = "pane"
+command = "lazygit status"
+description = "lazygit diff pane"
 
 # Legacy indexed shortcut config is still parsed for compatibility.
 # Prefer switch_tab, switch_workspace, and focus_agent for new configs.
