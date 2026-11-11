@@ -137,6 +137,24 @@ width = "90%"
 height = "85%"
 description = "floating shell popup"
 
+# Ctrl+b d shows the working tree diff against HEAD.
+[[keys.command]]
+key = "prefix+d"
+type = "popup"
+command = "git -c color.ui=always diff HEAD | less -R"
+width = "90%"
+height = "85%"
+description = "diff popup"
+
+# Ctrl+b Shift+l opens lazygit.
+[[keys.command]]
+key = "prefix+shift+l"
+type = "popup"
+command = "lazygit"
+width = "95%"
+height = "90%"
+description = "lazygit popup"
+
 # Legacy indexed shortcut config is still parsed for compatibility.
 # Prefer switch_tab, switch_workspace, and focus_agent for new configs.
 # [keys.indexed]
@@ -144,8 +162,8 @@ description = "floating shell popup"
 # workspaces = "" # e.g. "ctrl+shift" makes ctrl+shift+1..9 switch workspaces directly
 # agents = ""     # e.g. "alt" makes alt+1..9 focus agent rows directly
 
-# [worktrees]
-# directory = "~/.herdr/worktrees"
+[worktrees]
+directory = "~/.herdr/worktrees"
 
 [ui]
 # Sidebar width (auto-scaled based on workspace names, this sets the default)
@@ -200,7 +218,7 @@ description = "floating shell popup"
 # pane_gaps = true
 
 # Show detected/reported agent labels in split pane borders when no manual pane name is set.
-# show_agent_labels_on_pane_borders = false
+show_agent_labels_on_pane_borders = true
 
 # Hide the tab row when a workspace has exactly one tab.
 # New tabs can still be created with the configured keybinding.
@@ -208,7 +226,7 @@ description = "floating shell popup"
 
 # Agent panel ordering: "spaces" (grouped by space) or "priority" (attention queue).
 # "workspaces" is accepted as an alias for "spaces".
-# agent_panel_sort = "spaces"
+agent_panel_sort = "priority"  # agents that need attention go first
 
 # Accent color for highlights, borders, and navigation UI.
 # Accepts: hex (#89b4fa), named colors (cyan, blue, magenta), or rgb(r,g,b)
@@ -229,7 +247,7 @@ rows = [
 # herdr = show in-app toasts
 # terminal = ask the outer terminal to show a desktop notification
 # system = ask the OS notification service directly
-# delivery = "off"
+delivery = "system"  # macOS notification when an agent is done or blocked
 # delay_seconds = 1
 
 [ui.toast.herdr]
@@ -255,7 +273,7 @@ rows = [
 [session]
 # Resume supported AI-agent panes into their native conversation sessions after
 # a Herdr server restart. Requires official integrations that report session refs.
-# resume_agents_on_restore = true
+resume_agents_on_restore = true
 
 [remote]
 # Whether herdr manages the ssh config used for `herdr --remote`.
@@ -275,7 +293,7 @@ rows = [
 # Requires a Kitty graphics-compatible outer terminal.
 # kitty_graphics = false
 # Save recent pane screen history across full server restarts.
-pane_history = false
+pane_history = true
 # While prefix mode is active, temporarily switch the macOS host input
 # source to an ASCII-capable keyboard layout so prefix commands register
 # even when a CJK IME is active, then restore the previous input source
