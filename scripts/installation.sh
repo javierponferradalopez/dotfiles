@@ -36,13 +36,14 @@ echo "\nHerdr plugins -----------"
 "$(dirname "$0")/herdr-plugins.sh"
 echo "\n-------------------------"
 
-echo "\nPi ----------------------"
-if command -v pi &>/dev/null; then
-  echo "pi is already installed"
-else
-  curl -fsSL https://pi.dev/install.sh | sh && echo "pi installed"
-fi
-herdr integration install pi
+echo "\nClaude Code -------------"
+brew_install "claude-code@latest"
+brew_install "gitbutler" # Gives the `but` CLI
+herdr integration install claude
+# Write the skills again on each run, so they match the installed CLI.
+but skill install --path "$HOME/.claude/skills/gitbutler"
+mkdir -p "$HOME/.claude/skills/herdr"
+herdr --skill > "$HOME/.claude/skills/herdr/SKILL.md"
 echo "\n-------------------------"
 
 echo "\n${RED}Remember to install a Nerd Font (https://www.nerdfonts.com/font-downloads)${NC}"

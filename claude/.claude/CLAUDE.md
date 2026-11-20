@@ -1,15 +1,8 @@
-## Language
-
-Always answer in Spanish (Español), with all accents and special characters.
-Keep technical terms and code identifiers in their original form.
-
 ## Restrictions
 
+Do NOT use the AskUserQuestion tool.
+
 Write in ASD-STE100 Simplified Technical English: code, documentation, commits.
-
-## Sub-agents
-
-Before you start, answer or fan out a sub-agent, read `~/.pi/agent/SUBAGENTS.md`.
 
 ## Review comments
 

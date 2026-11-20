@@ -14,7 +14,7 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 | `git`       | Git                | `~/.gitconfig`                       |
 | `herdr`     | Herdr multiplexer  | `~/.config/herdr/config.toml`        |
 | `herdr-app` | Herdr desktop app  | `~/.config/herdr-app/` (single files) |
-| `pi`        | Pi coding agent    | `~/.pi/agent/` (single files)        |
+| `claude`    | Claude Code        | `~/.claude/` (single files)          |
 
 
 ## Installation
@@ -26,8 +26,9 @@ have under `$HOME`, so symlinking it places every file in its expected location.
 ### 1. Install dependencies
 
 On macOS, run the bootstrap script. It installs the base tools (GNU Stow,
-`git`, `jq`, …), Neovim's dependencies, the Herdr plugins and Pi, with its
-Herdr integration, skipping anything already present:
+`git`, `jq`, …), Neovim's dependencies, the Herdr plugins and Claude Code, with
+its Herdr integration and the GitButler and Herdr skills, skipping anything
+already present:
 
 ```bash
 ./scripts/installation.sh
@@ -69,13 +70,29 @@ Then, with the app open, install the mods that this config uses (see
 ./scripts/herdr-app-mods.sh
 ```
 
-`pi` must also be stowed with `--no-folding`. `~/.pi/agent` holds Pi's
-credentials (`auth.json`), sessions and install files, which must stay out of
-this repository:
+`claude` must also be stowed with `--no-folding`. `~/.claude` holds Claude
+Code's credentials, sessions, history, plugins and skills, which must stay out
+of this repository. The package holds only `CLAUDE.md`, `settings.json` and
+`statusline-command.sh`:
 
 ```bash
-stow -t $HOME -v --no-folding pi
+stow -t $HOME -v --no-folding claude
 ```
+
+If Claude Code already ran on that machine, these files exist and Stow reports
+a conflict. Add `--adopt`: Stow moves the files of the machine into the package
+and links them. Then examine `git diff`, because the files of the machine
+replace the files of this repository.
+
+Claude Code writes `settings.json` through the symlink when you change a
+setting, so the changes come into this repository. Commit them.
+
+MCP servers are not kept here, because their configuration holds credentials.
+Add them on each machine with `claude mcp add`.
+
+The skills are not kept here either. `scripts/installation.sh` installs the
+GitButler and Herdr skills. To link your own skills repository, use its
+`bin/dev-link --target claude`.
 
 ### Herdr plugins
 
@@ -147,5 +164,5 @@ shortcuts, add them by hand.
 Remove the symlinks for any package with the `-D` flag:
 
 ```bash
-stow -t $HOME -v -D zsh alacritty nvim git herdr herdr-app pi
+stow -t $HOME -v -D zsh alacritty nvim git herdr herdr-app claude
 ```
