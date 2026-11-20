@@ -1,0 +1,9 @@
+# Herdr app mods, one on each line: <owner>/<repo> <tag> [patch ...]
+#
+# <tag> pins the release to install. Each patch is a file in scripts/patches/,
+# made against that tag. When you change the tag, make the patches again:
+# scripts/herdr-app-mods.sh stops when a patch does not apply.
+#
+# The repo must have an install.sh that accepts `--app --version <tag>`.
+
+ChmaraX/herdr-gitview v0.6.0 herdr-gitview-v0.6.0-diff-in-tab.patch

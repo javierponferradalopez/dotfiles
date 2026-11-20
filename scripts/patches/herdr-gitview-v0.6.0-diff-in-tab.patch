@@ -1,0 +1,68 @@
+--- a/gitview/main.js
++++ b/gitview/main.js
+@@ -13,7 +13,7 @@
+ 
+ import { View } from "gpui-kit";
+ import { v_flex, TextareaState } from "gpui-base";
+-import { focused, notify, panes, props, shared, theme } from "herdr";
++import { focused, notify, panes, props, setShared, shared, theme } from "herdr";
+ import { Tracer, event, run } from "./telemetry.js";
+ import { endTerminal, gv, labelled, message, onArgs } from "./engine.js";
+ import { diffArgs, isDark, sameFile, sameShown } from "./model.js";
+@@ -96,6 +96,7 @@
+         this.loads.revive(cx, r.before);
+         cx.notify();
+       }
++      this.followPick(cx);
+       if (!this.stale()) return;
+       this.notice(cx);
+       cx.notify();
+@@ -927,7 +928,33 @@
+       list.toggleFold(row);
+     } else if (e.click_count >= 2) this.edit(row, cx);
+     else if (this.handedOff(row)) this.bringBack(row, cx);
+-    else if (!list.isSelected(row) || !liveView(viewIn(this.tab())) || !diffPane(this.tab())) this.select(row, cx);
++    else if (this.place.opensTab) {
++      list.select(row);
++      if (this.mode === "files") this.openInTab(row);
++      else this.flash.set("commit diffs: open them in the gitview tab (cmd-g)");
++    } else if (!list.isSelected(row) || !liveView(viewIn(this.tab())) || !diffPane(this.tab())) this.select(row, cx);
++    cx.notify();
++  }
++
++  // Local change: the panel opens the clicked file in cmd-g's tab. The file
++  // goes in shared "gitview.pick"; the tab's list selects it (followPick).
++  openInTab(row) {
++    const v = this.list().viewFor(row);
++    setShared("gitview.pick", { space: this.ctx?.space ?? null, root: v.root, path: v.path, section: v.section, at: Date.now() });
++    run("mod.open", { name: "gitview-tab" });
++  }
++
++  // cmd-g's list: select the file the panel picked (openInTab), once.
++  followPick(cx) {
++    if (this.place.opensTab || !this.work || this.mode !== "files") return;
++    const p = shared("gitview.pick");
++    if (!p || p.at <= (this.pickSeen ?? 0) || p.space !== this.ctx?.space) return;
++    if (Date.now() - p.at > 15000) { this.pickSeen = p.at; return; }
++    if (p.root !== this.work.where.root) return; // this list's repo can still be on its way
++    this.pickSeen = p.at;
++    const row = this.work.findFile(p.path, p.section) ?? this.work.findFile(p.path);
++    if (row) this.select(row, cx, { open: false });
++    this.focusList(cx);
+     cx.notify();
+   }
+ 
+--- a/gitview/placement.js
++++ b/gitview/placement.js
+@@ -22,7 +22,10 @@
+   context: (keep) => location(keep),
+   tab: (ctx) => (ctx?.tab && !isOwnTab(ctx.tab) ? ctx.tab : null),
+   shown: () => Boolean(panelState()?.shown),
+-  opensDiffPane: true,
++  // Local change: a click opens the diff in cmd-g's tab, not in a split
++  // that makes the terminals narrower (main.js openInTab).
++  opensDiffPane: false,
++  opensTab: true,
+   closesForHerdrNvim: true,
+   takesKeyboard: false,
+   frame: (e, t, focused) => e.rounded(10).overflow_hidden().border_1().border_color(focused ? t.accent : t.border),
